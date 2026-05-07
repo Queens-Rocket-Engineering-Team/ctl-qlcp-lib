@@ -14,7 +14,7 @@ set_target_properties(qlcp
 
 target_include_directories(qlcp
     PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
@@ -31,7 +31,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    install(FILES src/qlcp_lib.h
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/qlcp_lib.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
