@@ -42,7 +42,7 @@ When a device receives this packet, it extracts the server's IP address from the
 
 ## More Information
 
-Refer to PROTOCOL_WALKTHROUGH.md for an in-depth explanation of all packet types and enums.
+Refer to PROTOCOL_SPECIFICATION.md for an in-depth explanation of all packet types and enums.
 
 ---
 
