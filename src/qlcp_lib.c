@@ -1,14 +1,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 
 #include "qlcp_lib.h"
+
+const uint8_t QLCP_MAGIC_NUM[] = {'Q', 'L', 'C', 'P'};
+static_assert(sizeof(QLCP_MAGIC_NUM) == 4, "Magic number is not 4 bytes");
 
 #define QLCP_PROTOCOL_VERSION 3
 
 // Internal header struct
 typedef struct {
-    uint8_t version;
     uint8_t packet_type;
     uint8_t sequence;
     uint16_t packet_length;
@@ -24,21 +27,23 @@ static qlcp_lib_ret s_pack_header(uint8_t buffer[], size_t buffer_len, const qlc
         return QLCP_NO_MEM;
     }
 
-    buffer[0] = header_data->version;
-    buffer[1] = header_data->packet_type;
-    buffer[2] = header_data->sequence;
+    memcpy(buffer, QLCP_MAGIC_NUM, sizeof(QLCP_MAGIC_NUM)); // magic number is QLCP in ascii
 
-    buffer[3] = (uint8_t)(header_data->packet_length >> 8);
-    buffer[4] = (uint8_t)header_data->packet_length;
+    buffer[4] = QLCP_PROTOCOL_VERSION;
+    buffer[5] = header_data->packet_type;
+    buffer[6] = header_data->sequence;
 
-    buffer[5] = (uint8_t)(header_data->timestamp_us >> 56);
-    buffer[6] = (uint8_t)(header_data->timestamp_us >> 48);
-    buffer[7] = (uint8_t)(header_data->timestamp_us >> 40);
-    buffer[8] = (uint8_t)(header_data->timestamp_us >> 32);
-    buffer[9] = (uint8_t)(header_data->timestamp_us >> 24);
-    buffer[10] = (uint8_t)(header_data->timestamp_us >> 16);
-    buffer[11] = (uint8_t)(header_data->timestamp_us >> 8);
-    buffer[12] = (uint8_t)header_data->timestamp_us;
+    buffer[7] = (uint8_t)(header_data->packet_length >> 8);
+    buffer[8] = (uint8_t)header_data->packet_length;
+
+    buffer[9] = (uint8_t)(header_data->timestamp_us >> 56);
+    buffer[10] = (uint8_t)(header_data->timestamp_us >> 48);
+    buffer[11] = (uint8_t)(header_data->timestamp_us >> 40);
+    buffer[12] = (uint8_t)(header_data->timestamp_us >> 32);
+    buffer[13] = (uint8_t)(header_data->timestamp_us >> 24);
+    buffer[14] = (uint8_t)(header_data->timestamp_us >> 16);
+    buffer[15] = (uint8_t)(header_data->timestamp_us >> 8);
+    buffer[16] = (uint8_t)header_data->timestamp_us;
 
     return QLCP_OK;
 }
@@ -51,24 +56,26 @@ static qlcp_lib_ret s_unpack_header(qlcp_header_internal *header_data, const uin
     if (buffer_len < QLCP_HEADER_SIZE) {
         return QLCP_NO_MEM;
     }
-    if (buffer[0] != QLCP_PROTOCOL_VERSION) {
+    if (memcmp(buffer, QLCP_MAGIC_NUM, sizeof(QLCP_MAGIC_NUM)) != 0) {
+        return QLCP_MAGIC_NUM_MISMATCH;
+    }
+    if (buffer[4] != QLCP_PROTOCOL_VERSION) {
         return QLCP_VERSION_MISMATCH;
     }
 
-    header_data->version = buffer[0];
     header_data->packet_type = buffer[1];
     header_data->sequence = buffer[2];
 
     header_data->packet_length = ((uint16_t)buffer[3] << 8) | ((uint16_t)buffer[4]);
 
-    header_data->timestamp_us = ((uint32_t)buffer[5] << 56) |
-                                ((uint32_t)buffer[6] << 48) |
-                                ((uint32_t)buffer[7] << 40) |
-                                ((uint32_t)buffer[8] << 32) |
-                                ((uint32_t)buffer[9] << 24) |
-                                ((uint32_t)buffer[10] << 16) |
-                                ((uint32_t)buffer[11] << 8) |
-                                ((uint32_t)buffer[12]);
+    header_data->timestamp_us = ((uint64_t)buffer[5] << 56) |
+                                ((uint64_t)buffer[6] << 48) |
+                                ((uint64_t)buffer[7] << 40) |
+                                ((uint64_t)buffer[8] << 32) |
+                                ((uint64_t)buffer[9] << 24) |
+                                ((uint64_t)buffer[10] << 16) |
+                                ((uint64_t)buffer[11] << 8) |
+                                ((uint64_t)buffer[12]);
 
     return QLCP_OK;
 }
@@ -101,7 +108,6 @@ qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_
     *buffer_len = QLCP_HEADER_SIZE;
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = packet_type,
         .sequence = header_only->sequence,
         .packet_length = QLCP_HEADER_SIZE,
@@ -125,7 +131,6 @@ qlcp_lib_ret qlcp_encode_ack(uint8_t buffer[], size_t *buffer_len, const qlcp_ac
     *buffer_len = QLCP_ACK_PACKET_SIZE;
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_ACK,
         .sequence = ack->header.sequence,
         .packet_length = QLCP_ACK_PACKET_SIZE,
@@ -153,7 +158,6 @@ qlcp_lib_ret qlcp_encode_nack(uint8_t buffer[], size_t *buffer_len, const qlcp_n
     *buffer_len = QLCP_NACK_PACKET_SIZE;
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_NACK,
         .sequence = nack->header.sequence,
         .packet_length = QLCP_NACK_PACKET_SIZE,
@@ -182,7 +186,6 @@ qlcp_lib_ret qlcp_encode_stream_start(uint8_t buffer[], size_t *buffer_len, cons
     *buffer_len = QLCP_STREAM_START_PACKET_SIZE;
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_STREAM_START,
         .sequence = stream_start->header.sequence,
         .packet_length = QLCP_STREAM_START_PACKET_SIZE,
@@ -210,7 +213,6 @@ qlcp_lib_ret qlcp_encode_control(uint8_t buffer[], size_t *buffer_len, const qlc
     *buffer_len = QLCP_CONTROL_PACKET_SIZE;
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_CONTROL,
         .sequence = control->header.sequence,
         .packet_length = QLCP_CONTROL_PACKET_SIZE,
@@ -238,7 +240,6 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
     *buffer_len = QLCP_STATUS_PACKET_SIZE(status->control_count);
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_STATUS,
         .sequence = status->header.sequence,
         .packet_length = QLCP_STATUS_PACKET_SIZE(status->control_count),
@@ -271,7 +272,6 @@ qlcp_lib_ret qlcp_encode_data(uint8_t buffer[], size_t *buffer_len, const qlcp_d
     *buffer_len = QLCP_DATA_PACKET_SIZE(data->sensor_count);
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_DATA,
         .sequence = data->header.sequence,
         .packet_length = QLCP_DATA_PACKET_SIZE(data->sensor_count),
@@ -314,7 +314,6 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
     *buffer_len = QLCP_CONFIG_PACKET_SIZE(packet_data_len);
 
     const qlcp_header_internal header_data = {
-        .version = QLCP_PROTOCOL_VERSION,
         .packet_type = QLCP_PT_CONFIG,
         .sequence = config->header.sequence,
         .packet_length = QLCP_CONFIG_PACKET_SIZE(packet_data_len),

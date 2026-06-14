@@ -4,18 +4,19 @@ This document is the authoritative wire-format reference for the QRET Propulsion
 
 ---
 
-## Packet Header (13 bytes)
+## Packet Header (17 bytes)
 
 Every packet begins with this header. The LENGTH field enables trivial TCP framing.
 
 ```
 Offset  Size  Type    Field        Description
 ------  ----  ------  -----------  ----------------------------------------
-0       1     uint8   VERSION      Protocol revision (currently 0x02)
-1       1     uint8   PACKET_TYPE  Packet type enum (see below)
-2       1     uint8   SEQUENCE     Wrapping counter 0-255 for req/resp matching
-3       2     uint16  LENGTH       Total packet size including this header
-5       4     uint64  TIMESTAMP    Microseconds since boot (device) or session start (server)
+0       4     ASCII   MAGIC_NUM    Magic number to verify framing
+4       1     uint8   VERSION      Protocol revision (currently 0x03)
+5       1     uint8   PACKET_TYPE  Packet type enum (see below)
+6       1     uint8   SEQUENCE     Wrapping counter 0-255 for req/resp matching
+7       2     uint16  LENGTH       Total packet size including this header
+9       8     uint64  TIMESTAMP    Microseconds since boot (device) or session start (server)
 ```
 
 The TIMESTAMP field on device-originated packets must be the device's microseconds since boot added to the current timestamp offset. This is explained in-depth in the TIMESYNC Packet section.
@@ -24,9 +25,9 @@ The TIMESTAMP field on device-originated packets must be the device's microsecon
 
 To parse a TCP stream:
 
-1. Read 13 bytes (header)
+1. Read 17 bytes (header)
 2. Extract LENGTH from bytes 3-4
-3. Read `LENGTH - 13` more bytes (payload)
+3. Read `LENGTH - 17` more bytes (payload)
 4. Decode the complete packet
 
 ---
@@ -58,7 +59,7 @@ Value  Name            Direction        Description
 
 ## Packet Formats
 
-### Header-Only Packets (13 bytes)
+### Header-Only Packets (17 bytes)
 
 These packets have no payload.
 
@@ -75,16 +76,16 @@ These packets have no payload.
 
 ---
 
-### STATUS (15 + 2*N bytes, variable)
+### STATUS (19 + 2*N bytes, variable)
 
 Device status response and valve/control states.
 
 ```
 Offset  Size  Type    Field   Description
 ------  ----  ------  ------  -------------------------
-0-12    13    -       header  Standard header
-9       1     uint8   status  DeviceStatus enum value
-10      1     uint8   count   Number of valves/controls (N)
+0-16    17    -       header  Standard header
+17      1     uint8   status  DeviceStatus enum value
+18      1     uint8   count   Number of valves/controls (N)
 
 Repeated N times (2 bytes each):
 +0      1     uint8   command_id  Index in device's control array
@@ -93,63 +94,63 @@ Repeated N times (2 bytes each):
 
 ---
 
-### STREAM_START (15 bytes)
+### STREAM_START (19 bytes)
 
 Start streaming at specified frequency.
 
 ```
 Offset  Size  Type    Field         Description
 ------  ----  ------  ------------  -------------------------
-0-12    13    -       header        Standard header
-9       2     uint16  frequency_hz  Samples per second (1-65535)
+0-16    17    -       header        Standard header
+17      2     uint16  frequency_hz  Samples per second (1-65535)
 ```
 
 ---
 
-### CONTROL (15 bytes)
+### CONTROL (19 bytes)
 
 Control command for valves/actuators.
 
 ```
 Offset  Size  Type    Field          Description
 ------  ----  ------  -------------  -------------------------
-0-12    13    -       header         Standard header
-9       1     uint8   command_id     Index in device's control array
-10      1     uint8   command_state  ControlState enum value
+0-16    17    -       header         Standard header
+17      1     uint8   command_id     Index in device's control array
+18      1     uint8   command_state  ControlState enum value
 ```
 
 ---
 
-### ACK (15 bytes)
+### ACK (19 bytes)
 
 Positive acknowledgment.
 
 ```
 Offset  Size  Type    Field           Description
 ------  ----  ------  --------------  -------------------------
-0-12    13    -       header          Standard header (type=0x13)
-9       1     uint8   ack_packet_type Type of packet being acknowledged
-10      1     uint8   ack_sequence    Sequence number of acknowledged packet
+0-16    17    -       header          Standard header (type=0x13)
+17      1     uint8   ack_packet_type Type of packet being acknowledged
+18      1     uint8   ack_sequence    Sequence number of acknowledged packet
 ```
 
 ---
 
-### NACK (16 bytes)
+### NACK (20 bytes)
 
 Negative acknowledgment with error code.
 
 ```
 Offset  Size  Type    Field            Description
 ------  ----  ------  ---------------  -------------------------
-0-12    13    -       header           Standard header (type=0x14)
-9       1     uint8   nack_packet_type Type of packet being rejected
-10      1     uint8   nack_sequence    Sequence number of rejected packet
-11      1     uint8   error_code       ErrorCode enum value
+0-16    17    -       header           Standard header (type=0x14)
+17      1     uint8   nack_packet_type Type of packet being rejected
+18      1     uint8   nack_sequence    Sequence number of rejected packet
+19      1     uint8   error_code       ErrorCode enum value
 ```
 
 ---
 
-### TIMESYNC (13 bytes, header-only)
+### TIMESYNC (17 bytes, header-only)
 
 Time synchronization from server. No payload, as the header's TIMESTAMP field carries the server's monotonic microseconds.
 
@@ -176,15 +177,15 @@ After this, every packet the device sends has its timestamp locked to the server
 
 ---
 
-### DATA (14 + 6*N bytes, variable)
+### DATA (18 + 6*N bytes, variable)
 
-Batched sensor data. LENGTH = 14 + 6*N, where N is the number of readings.
+Batched sensor data. LENGTH = 18 + 6*N, where N is the number of readings.
 
 ```
 Offset  Size  Type    Field     Description
 ------  ----  ------  --------  -------------------------
-0-12    13    -       header    Standard header
-9       1     uint8   count     Number of sensor readings (N)
+0-16    17    -       header    Standard header
+17      1     uint8   count     Number of sensor readings (N)
 
 Repeated N times (6 bytes each):
 +0      1     uint8   sensor_id  Index in device's sensor array
@@ -192,24 +193,24 @@ Repeated N times (6 bytes each):
 +2      4     float32 value      IEEE 754 single-precision float
 ```
 
-A single reading uses N=1 (20 bytes total). Example with 3 sensors:
+A single reading uses N=1 (24 bytes total). Example with 3 sensors:
 
 ```
-13 (header) + 1 (count) + 3 * 6 (readings) = 28 bytes
+17 (header) + 1 (count) + 3 * 6 (readings) = 36 bytes
 ```
 
 ---
 
-### CONFIG (17 + json_len bytes, variable)
+### CONFIG (21 + json_len bytes, variable)
 
-Device configuration sent on connection. LENGTH = 17 + json_len.
+Device configuration sent on connection. LENGTH = 21 + json_len.
 
 ```
 Offset      Size      Type    Field       Description
 ------      ----      ------  ----------  -------------------------
-0-12        13        -       header      Standard header
-9           4         uint32  json_length Length of JSON data in bytes
-13          json_len  bytes   json_data   UTF-8 encoded JSON string
+0-16        17        -       header      Standard header
+17          4         uint32  json_length Length of JSON data in bytes
+21          json_len  bytes   json_data   UTF-8 encoded JSON string
 ```
 
 ---
@@ -218,20 +219,20 @@ Offset      Size      Type    Field       Description
 
 | Packet         | Total Size       | Payload after header |
 |----------------|------------------|----------------------|
-| ESTOP          | 13               | (none)               |
-| DISCOVERY      | 13               | (none)               |
-| HEARTBEAT      | 13               | (none)               |
-| STREAM_STOP    | 13               | (none)               |
-| GET_SINGLE     | 13               | (none)               |
-| STATUS_REQUEST | 13               | (none)               |
-| STATUS         | 14               | 1B status            |
-| STREAM_START   | 15               | 2B frequency_hz      |
-| CONTROL        | 15               | 1B cmd_id + 1B state |
-| ACK            | 15               | 1B type + 1B seq |
-| NACK           | 16               | 1B type + 1B seq + 1B error |
-| TIMESYNC       | 13               | (none)               |
-| DATA           | 14 + 6*N         | 1B count + N*(1B+1B+4B) |
-| CONFIG         | 17 + json_len    | 4B len + json_data   |
+| ESTOP          | 17               | (none)               |
+| DISCOVERY      | 17               | (none)               |
+| HEARTBEAT      | 17               | (none)               |
+| STREAM_STOP    | 17               | (none)               |
+| GET_SINGLE     | 17               | (none)               |
+| TIMESYNC       | 17               | (none)               |
+| STATUS_REQUEST | 17               | (none)               |
+| STATUS         | 18               | 1B status            |
+| STREAM_START   | 19               | 2B frequency_hz      |
+| CONTROL        | 19               | 1B cmd_id + 1B state |
+| ACK            | 19               | 1B type + 1B seq |
+| NACK           | 20               | 1B type + 1B seq + 1B error |
+| DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
+| CONFIG         | 21 + json_len    | 4B len + json_data   |
 
 ---
 
