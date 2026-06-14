@@ -100,7 +100,7 @@ typedef enum {
 
 #define QLCP_CONFIG_DATA_SIZE(config_len) (4 + config_len)
 
-#define QLCP_HEADER_SIZE 9
+#define QLCP_HEADER_SIZE 13
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
 #define QLCP_CONTROL_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_CONTROL_DATA_SIZE)
@@ -117,7 +117,7 @@ typedef enum {
 // Generic header struct
 typedef struct {
     uint8_t sequence;
-    uint32_t timestamp;
+    uint64_t timestamp_us;
 } qlcp_header;
 
 // Struct for variable-length control data data in status packet
