@@ -13,8 +13,8 @@ typedef enum {
     QLCP_NULL_PTR,
     QLCP_NO_MEM,
     QLCP_LEN_MISMATCH,
-    QLCP_MAGIC_NUM_MISMATCH,
     QLCP_VERSION_MISMATCH,
+    QLCP_NO_MAGIC_NUM,
     QLCP_INVALID_PACKET_TYPE,
 } qlcp_lib_ret;
 
@@ -263,6 +263,8 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
 //----------------------------------------------------------
 
 qlcp_lib_ret qlcp_get_packet_len(uint16_t *packet_len, const uint8_t buffer[], size_t buffer_len);
+
+qlcp_lib_ret qlcp_find_magic_num(size_t *magic_num_position, const uint8_t buffer[], size_t buffer_len);
 
 qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_server_payload_buffers *payload_buffers, const uint8_t buffer[], size_t buffer_len);
 

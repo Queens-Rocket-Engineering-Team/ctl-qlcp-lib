@@ -57,7 +57,7 @@ static qlcp_lib_ret s_unpack_header(qlcp_header_internal *header_data, const uin
         return QLCP_NO_MEM;
     }
     if (memcmp(buffer, QLCP_MAGIC_NUM, sizeof(QLCP_MAGIC_NUM)) != 0) {
-        return QLCP_MAGIC_NUM_MISMATCH;
+        return QLCP_NO_MAGIC_NUM;
     }
     if (buffer[4] != QLCP_PROTOCOL_VERSION) {
         return QLCP_VERSION_MISMATCH;
@@ -95,6 +95,10 @@ static inline bool s_is_packet_header_only(qlcp_packet_type packet_type) {
         return false;
     }
 }
+
+//----------------------------------------------------------
+// Encoding implementation
+//----------------------------------------------------------
 
 qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_packet_type packet_type, const qlcp_header_only_packet *header_only) {
     if (buffer == NULL || buffer_len == NULL || header_only == NULL) {
@@ -376,6 +380,10 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
     return QLCP_OK;
 }
 
+//----------------------------------------------------------
+// Decoding implementation
+//----------------------------------------------------------
+
 qlcp_lib_ret qlcp_get_packet_len(uint16_t *packet_len, const uint8_t buffer[], size_t buffer_len) {
     if (buffer == NULL || packet_len == NULL) {
         return QLCP_NULL_PTR;
@@ -392,6 +400,35 @@ qlcp_lib_ret qlcp_get_packet_len(uint16_t *packet_len, const uint8_t buffer[], s
 
     *packet_len = header_data.packet_length;
     return QLCP_OK;
+}
+
+qlcp_lib_ret qlcp_find_magic_num(size_t *magic_num_index, const uint8_t buffer[], size_t buffer_len) {
+    if (buffer == NULL || magic_num_index == NULL) {
+        return QLCP_NULL_PTR;
+    }
+    if (buffer_len < sizeof(QLCP_MAGIC_NUM)) {
+        return QLCP_NO_MEM;
+    }
+
+    const size_t max_search_limit = buffer_len - sizeof(QLCP_MAGIC_NUM) + 1;
+    size_t offset = 0;
+
+    while (offset < max_search_limit) {
+        // Search for first byte of magic number
+        const uint8_t *pos = memchr(buffer + offset, QLCP_MAGIC_NUM[0], max_search_limit - offset);
+
+        if (pos == NULL) {
+            return QLCP_NO_MAGIC_NUM;
+        }
+        // If first byte found in buffer, memcmp for whole magic number
+        if (memcmp(pos, QLCP_MAGIC_NUM, sizeof(QLCP_MAGIC_NUM)) == 0) {
+            *magic_num_index = pos - buffer;
+            return QLCP_OK;
+        }
+        // If memcmp is false, move offset to next index after last memchr pos
+        offset = (pos - buffer) + 1;
+    }
+    return QLCP_NO_MAGIC_NUM;
 }
 
 qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_server_payload_buffers *payload_buffers, const uint8_t buffer[], size_t buffer_len) {
