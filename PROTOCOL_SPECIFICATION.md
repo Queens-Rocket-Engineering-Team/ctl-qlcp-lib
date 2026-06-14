@@ -11,7 +11,7 @@ Every packet begins with this header. The LENGTH field enables trivial TCP frami
 ```
 Offset  Size  Type    Field        Description
 ------  ----  ------  -----------  ----------------------------------------
-0       4     ASCII   MAGIC_NUM    Magic number to verify framing - Always 0x514C4350 ("QLCP") 
+0       4     ASCII   MAGIC_NUM    Magic number to verify framing - Always 0x514C4350 ("QLCP")
 4       1     uint8   VERSION      Protocol revision (currently 0x03)
 5       1     uint8   PACKET_TYPE  Packet type enum (see below)
 6       1     uint8   SEQUENCE     Wrapping counter 0-255 for req/resp matching
@@ -27,9 +27,9 @@ To parse a TCP stream:
 
 1. Read bytes until the 4-byte sequence 0x514C4350 is found.
 2. Read 13 more bytes (remainder header; 17 byte total header).
-2. Extract LENGTH from bytes 7-8.
-3. Read `LENGTH - 17` more bytes (payload).
-4. Decode the complete packet.
+3. Extract LENGTH from bytes 7-8.
+4. Read `LENGTH - 17` more bytes (payload).
+5. Decode the complete packet.
 
 ---
 
