@@ -40,14 +40,15 @@ Value  Name            Direction        Description
 -----  --------------  ---------------  --------------------------------
 0x00   ESTOP           Server -> Device Emergency stop, highest priority
 0x01   DISCOVERY       Server -> *      Discovery broadcast
-0x02   TIMESYNC        Server -> Device Time synchronization
+0x02   HEARTBEAT       Server -> Device Keep-alive
 0x03   CONTROL         Server -> Device Control command (valve, etc.)
 0x04   STATUS_REQUEST  Server -> Device Request device status
 0x05   STREAM_START    Server -> Device Start streaming at given Hz
 0x06   STREAM_STOP     Server -> Device Stop streaming
 0x07   GET_SINGLE      Server -> Device Request single data reading
-0x08   HEARTBEAT       Server -> Device Keep-alive
+0x08   TIMESYNC_RESP   Server -> Device Time synchronization response
 
+0x09   TIMESYNC_REQ    Device -> Server Time synchronization request
 0x10   CONFIG          Device -> Server Device configuration (JSON)
 0x11   DATA            Device -> Server Batched sensor data
 0x12   STATUS          Device -> Server Device status response
@@ -68,11 +69,11 @@ These packets have no payload.
 |----------------|-------|
 | ESTOP          | 0x00  |
 | DISCOVERY      | 0x01  |
-| TIMESYNC       | 0x02  |
+| HEARTBEAT      | 0x02  |
+| STATUS_REQUEST | 0x04  |
 | STREAM_STOP    | 0x06  |
 | GET_SINGLE     | 0x07  |
-| HEARTBEAT      | 0x08  |
-| STATUS_REQUEST | 0x04  |
+| TIMESYNC_REQ   | 0x09  |
 
 
 ---
@@ -151,30 +152,56 @@ Offset  Size  Type    Field            Description
 
 ---
 
-### TIMESYNC (17 bytes, header-only)
+### TIMESYNC
 
-Time synchronization from server. No payload, as the header's TIMESTAMP field carries the server's monotonic microseconds.
+NTP-style clock synchronization, device-initiated. Uses a two-packet round-trip to estimate one-way network latency and compute a corrected clock offset. The server participates statelessly — it echoes timestamps back and does no math.
 
-The server sends TIMESYNC immediately after acknowledging the device's CONFIG, and then periodically every 10 minutes during normal operation.
+#### TIMESYNC_REQ (17 bytes, header-only)
 
-**Device behavior**: When the device receives TIMESYNC, it must:
+Device stamps T1 = device_time_us() in the header TIMESTAMP field and sends.
 
-1. Compute a timestamp offset using the TIMESYNC packet's **header timestamp** (the server's monotonic us):
-   ```
-   ts_offset = header.timestamp_us - device_time_us();
-   ```
-2. Store this offset.
-3. For **all subsequent outgoing packets**, set the header timestamp to:
-   ```
-   timestamp_us = ts_offset + device_time_us();
-   ```
-4. ACK the TIMESYNC.
+#### TIMESYNC_RESP (33 bytes)
+
+Server stamps T2 = server_time_us() on receipt, then stamps T3 = server_time_us() in the header TIMESTAMP field immediately before sending. Payload carries T1 and T2 so the device has all four timestamps on receipt.
+
+Offset  Size  Type    Field       Description
+------  ----  ------  ----------  -------------------------
+0-16    17    -       header      Standard header (type=0x08, TIMESTAMP=T3)
+17      8     uint64  t1_echo_us  Echo of T1 from request header
+25      8     uint64  t2_us       Server receipt time (monotonic us)
+
+#### Device behavior
+
+On receiving TIMESYNC_RESP, the device must:
+
+1. Sample T4 = device_time_us() immediately on receipt.
+2. Recover all four timestamps:
+   T1 = resp.payload.t1_echo_us      (device send time, echoed from request header)
+   T2 = resp.payload.t2_us           (server receipt time)
+   T3 = resp.header.timestamp_us     (server send time)
+   T4 = device_time_us()             (sampled in step 1)
+3. Compute the clock offset:
+   ts_offset = ((T1 - T2) + (T4 - T3)) / 2
+   A positive ts_offset means the device clock is running ahead of the server.
+4. Store ts_offset.
+5. For *all subsequent outgoing packets*, set the header timestamp to:
+   header.timestamp_us = device_time_us() - ts_offset
 
 After this, every packet the device sends has its timestamp locked to the server's time scale. The server can use device header timestamps directly — no server-side conversion is needed.
 
-**Why this matters**: By locking device timestamps to the server's clock, the server gets inter-sample timing derived from the device's crystal oscillator rather than from network receive times. This eliminates jitter from TCP buffering, OS scheduling, and network latency. The device's oscillator provides consistent, microsecond-resolution intervals between readings.
+#### Initiation policy
 
-**Why periodic resync**: ESP32 crystal oscillators drift approximately 20 ppm. Over 10 minutes this is ~12 ms; over 1 hour it is ~72 ms. At high sample rates (hundreds of Hz), where one sample period is 5-10 ms, this drift becomes significant during long test runs. The server automatically sends a new TIMESYNC every 10 minutes. The device recomputes its offset on each TIMESYNC, keeping drift under ~12 ms.
+The device initiates a sync cycle immediately after receiving the ACK for its CONFIG packet, and then every 1 minutes thereafter.
+
+#### Why this matters
+
+By locking device timestamps to the server's clock, the server gets inter-sample timing derived from the device's crystal oscillator rather than from network receive times. This eliminates jitter from TCP buffering, OS scheduling, and network latency. The device's oscillator provides consistent, microsecond-resolution intervals between readings.
+
+One-way latency correction is essential: a naïve single-packet sync (server stamps and sends; device computes offset on receipt) leaves a systematic error equal to the one-way network delay. On a LAN this is typically under 1 ms but non-zero and variable — larger than the drift the resync is trying to correct.
+
+#### Why periodic resync
+
+ESP32 crystal oscillators drift approximately 10 ppm. Over 1 minutes this is ~0.6 ms; over 1 hour it is ~36 ms. At high sample rates (hundreds of Hz), where one sample period is 1–10 ms, this drift becomes significant during long test runs. The 1-minute maintenance interval keeps accumulated drift under ~0.6 ms between corrections.
 
 ---
 
@@ -224,7 +251,8 @@ Offset      Size      Type    Field       Description
 | HEARTBEAT      | 17               | (none)               |
 | STREAM_STOP    | 17               | (none)               |
 | GET_SINGLE     | 17               | (none)               |
-| TIMESYNC       | 17               | (none)               |
+| TIMESYNC_REQ   | 17               | (none)               |
+| TIMESYNC_RESP  | 33               | 8B T1_echo + 8B T2   |
 | STATUS_REQUEST | 17               | (none)               |
 | STREAM_START   | 19               | 2B frequency_hz      |
 | CONTROL        | 19               | 1B cmd_id + 1B state |
@@ -342,7 +370,7 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
 ```
  Server                                Device
    |                                     |
-   |-- SSDP M-SEARCH (multicast) ----->>|  1. Server broadcasts on 239.255.255.250:1900
+   |-- SSDP M-SEARCH (multicast) ----->> |  1. Server broadcasts on 239.255.255.250:1900
    |                                     |
    |<<----------- TCP connect -----------|  2. Device opens TCP to server:50000
    |                                     |
@@ -350,37 +378,39 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
    |                                     |
    |------------ ACK ---------------->>  |  4. Server acknowledges config
    |                                     |
-   |------------ TIMESYNC ----------->>  |  5. Server sends time reference
+   |<<------- TIMESYNC_REQ packet -------|  3. Device sends timesync request
    |                                     |
-   |<<----------- ACK ------------------|  6. Device acknowledges (server records sync)
+   |--------- TIMESYNC_RESP --------->>  |  5. Server sends time reference
+   |                                     |
+   |<<------------ ACK ------------------|  6. Device acknowledges (server records sync)
    |                                     |
    |        (normal operation)           |
    |                                     |
    |------------ HEARTBEAT ---------->>  |  Periodic keep-alive (every 5s)
-   |<<----------- ACK ------------------|
+   |<<------------ ACK ------------------|
    |                                     |
-   |------------ TIMESYNC ---------->>  |  Periodic resync (every 10 min)
-   |<<----------- ACK ------------------|
+   |<<------------ TIMESYNC -----------  |  Periodic resync (every 1 min)
+   |<<------------ ACK ------------------|
    |                                     |
    |------------ STREAM_START ------->>  |  Start data streaming
-   |<<----------- ACK ------------------|
-   |<<----------- DATA (batched) -------|  Continuous sensor data at requested Hz
-   |<<----------- DATA (batched) -------|
+   |<<------------ ACK ------------------|
+   |<<------------ DATA (batched) -------|  Continuous sensor data at requested Hz
+   |<<------------ DATA (batched) -------|
    |                                     |
    |------------ CONTROL ------------>>  |  Valve/actuator command
-   |<<----------- ACK ------------------|
+   |<<------------ ACK ------------------|
    |                                     |
    |------------ STREAM_STOP -------->>  |  Stop streaming
-   |<<----------- ACK ------------------|
+   |<<------------ ACK ------------------|
    |                                     |
-   |------------ ESTOP ------------->>  |  Emergency stop (no ACK required)
+   |------------- ESTOP ------------->>  |  Emergency stop (no ACK required)
    |                                     |  Device sets all controls to defaults
 ```
 
 Key points:
 - The first packet on a new TCP connection is always CONFIG from the device.
 - Sequence numbers in ACK/NACK match the sequence of the original request.
-- Server sends TIMESYNC immediately after CONFIG ACK, then every 10 minutes.
+- Device sends TIMESYNC_REQ immediately after CONFIG ACK, then every 1 minutes.
 - DATA packet timestamps come from the device clock, using the previous timesync to calculate offset
 
 ---

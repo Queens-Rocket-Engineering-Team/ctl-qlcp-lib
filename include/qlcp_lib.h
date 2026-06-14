@@ -22,14 +22,15 @@ typedef enum {
     // Server -> Device
     QLCP_PT_ESTOP = 0x00,
     QLCP_PT_DISCOVERY = 0x01,
-    QLCP_PT_TIMESYNC = 0x02,
+    QLCP_PT_HEARTBEAT = 0x02,
     QLCP_PT_CONTROL = 0x03,
     QLCP_PT_STATUS_REQUEST = 0x04,
     QLCP_PT_STREAM_START = 0x05,
     QLCP_PT_STREAM_STOP = 0x06,
     QLCP_PT_GET_SINGLE = 0x07,
-    QLCP_PT_HEARTBEAT = 0x08,
+    QLCP_PT_TIMESYNC_RESP = 0x08,
     // Device -> Server
+    QLCP_PT_TIMESYNC_REQ = 0x09,
     QLCP_PT_CONFIG = 0x10,
     QLCP_PT_DATA = 0x11,
     QLCP_PT_STATUS = 0x12,
@@ -95,6 +96,7 @@ typedef enum {
 
 #define QLCP_STREAM_START_DATA_SIZE 2
 #define QLCP_CONTROL_DATA_SIZE 2
+#define QLCP_TIMESYNC_RESP_DATA_SIZE 16
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
 #define QLCP_STATUS_DATA_SIZE(control_count) (2 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
@@ -102,6 +104,7 @@ typedef enum {
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
 #define QLCP_CONTROL_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_CONTROL_DATA_SIZE)
+#define QLCP_TIMESYNC_RESP_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_TIMESYNC_RESP_DATA_SIZE)
 #define QLCP_ACK_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_ACK_DATA_SIZE)
 #define QLCP_NACK_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_NACK_DATA_SIZE)
 #define QLCP_STATUS_PACKET_SIZE(control_count) (QLCP_HEADER_SIZE + QLCP_STATUS_DATA_SIZE(control_count))
@@ -148,6 +151,12 @@ typedef struct {
 
 typedef struct {
     qlcp_header header;
+    uint64_t t1_echo_us;
+    uint64_t t2_us;
+} qlcp_timesync_resp_packet;
+
+typedef struct {
+    qlcp_header header;
     uint8_t ack_packet_type;
     uint8_t ack_sequence;
 } qlcp_ack_packet;
@@ -177,7 +186,7 @@ typedef struct {
 typedef struct {
     qlcp_header header;
     const char *config_data;
-    uint32_t config_data_len;
+    uint16_t config_data_len;
 } qlcp_config_packet;
 
 // Payload tagged unions
@@ -188,12 +197,13 @@ typedef struct {
     qlcp_sensor_data *sensor_data;
     uint8_t sensor_data_len;
     char *config_data;
-    uint32_t config_data_len;
+    uint16_t config_data_len;
 } qlcp_server_payload_buffers;
 
 typedef struct {
     qlcp_packet_type packet_type;
     union {
+        qlcp_header_only_packet header_only;
         qlcp_config_packet config;
         qlcp_data_packet data;
         qlcp_status_packet status;
@@ -208,6 +218,7 @@ typedef struct {
         qlcp_header_only_packet header_only;
         qlcp_control_packet control;
         qlcp_stream_start_packet stream_start;
+        qlcp_timesync_resp_packet timesync_resp;
         qlcp_ack_packet ack;
         qlcp_nack_packet nack;
     } payload_data;
@@ -224,13 +235,15 @@ typedef struct {
 
 qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_packet_type packet_type, const qlcp_header_only_packet *header_only);
 
-qlcp_lib_ret qlcp_encode_ack(uint8_t buffer[], size_t *buffer_len, const qlcp_ack_packet *ack);
-
-qlcp_lib_ret qlcp_encode_nack(uint8_t buffer[], size_t *buffer_len, const qlcp_nack_packet *nack);
-
 qlcp_lib_ret qlcp_encode_stream_start(uint8_t buffer[], size_t *buffer_len, const qlcp_stream_start_packet *stream_start);
 
 qlcp_lib_ret qlcp_encode_control(uint8_t buffer[], size_t *buffer_len, const qlcp_control_packet *control);
+
+qlcp_lib_ret qlcp_encode_timesync_resp(uint8_t buffer[], size_t *buffer_len, const qlcp_timesync_resp_packet *timesync_resp);
+
+qlcp_lib_ret qlcp_encode_ack(uint8_t buffer[], size_t *buffer_len, const qlcp_ack_packet *ack);
+
+qlcp_lib_ret qlcp_encode_nack(uint8_t buffer[], size_t *buffer_len, const qlcp_nack_packet *nack);
 
 // Status, data, and config packet structs include pointers to a variable length array.
 // When these functions are called, the data at that address must still be intact.
