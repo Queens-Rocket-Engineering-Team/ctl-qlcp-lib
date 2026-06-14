@@ -8,25 +8,12 @@ The QLCP protocol is a binary protocol used by launch control for ground communi
 
 ### SSDP Discovery
 
-The server announces its presence via SSDP multicast. Devices listen for this broadcast to discover the server.
+The server announces its presence via multicast with a DISCOVERY packet. Devices listen for this broadcast to discover the server.
 
-- Multicast address: `239.255.255.250`
-- Multicast port: `1900`
-- Search target: `urn:qretprop:espdevice:1`
+- Multicast address: `239.0.0.0`
+- Multicast port: `10000`
 
-The server sends the following M-SEARCH packet:
-
-```
-M-SEARCH * HTTP/1.1\r\n
-HOST: 239.255.255.250:1900\r\n
-MAN: "ssdp:discover"\r\n
-MX: 2\r\n
-ST: urn:qretprop:espdevice:1\r\n
-USER-AGENT: QRET/1.0\r\n
-\r\n
-```
-
-When a device receives this packet, it extracts the server's IP address from the UDP source address of the M-SEARCH packet. It then opens a TCP connection to the server.
+When a device receives a DISCOVERY packet, it extracts the server's IP address from the UDP source address of the packet. It then opens a TCP connection to the server.
 
 ### TCP
 
