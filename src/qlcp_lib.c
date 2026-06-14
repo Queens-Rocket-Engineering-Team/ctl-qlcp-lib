@@ -255,24 +255,27 @@ qlcp_lib_ret qlcp_encode_timesync_resp(uint8_t buffer[], size_t *buffer_len, con
     if (ret != QLCP_OK) {
         return ret;
     }
-    // TODO: add helper function private header for stuff like this
-    buffer[QLCP_HEADER_SIZE + 0] = (uint8_t)(timesync_resp->t1_echo_us >> 56);
-    buffer[QLCP_HEADER_SIZE + 1] = (uint8_t)(timesync_resp->t1_echo_us >> 48);
-    buffer[QLCP_HEADER_SIZE + 2] = (uint8_t)(timesync_resp->t1_echo_us >> 40);
-    buffer[QLCP_HEADER_SIZE + 3] = (uint8_t)(timesync_resp->t1_echo_us >> 32);
-    buffer[QLCP_HEADER_SIZE + 4] = (uint8_t)(timesync_resp->t1_echo_us >> 24);
-    buffer[QLCP_HEADER_SIZE + 5] = (uint8_t)(timesync_resp->t1_echo_us >> 16);
-    buffer[QLCP_HEADER_SIZE + 6] = (uint8_t)(timesync_resp->t1_echo_us >> 8);
-    buffer[QLCP_HEADER_SIZE + 7] = (uint8_t)timesync_resp->t1_echo_us;
 
-    buffer[QLCP_HEADER_SIZE + 8] = (uint8_t)(timesync_resp->t2_us >> 56);
-    buffer[QLCP_HEADER_SIZE + 9] = (uint8_t)(timesync_resp->t2_us >> 48);
-    buffer[QLCP_HEADER_SIZE + 10] = (uint8_t)(timesync_resp->t2_us >> 40);
-    buffer[QLCP_HEADER_SIZE + 11] = (uint8_t)(timesync_resp->t2_us >> 32);
-    buffer[QLCP_HEADER_SIZE + 12] = (uint8_t)(timesync_resp->t2_us >> 24);
-    buffer[QLCP_HEADER_SIZE + 13] = (uint8_t)(timesync_resp->t2_us >> 16);
-    buffer[QLCP_HEADER_SIZE + 14] = (uint8_t)(timesync_resp->t2_us >> 8);
-    buffer[QLCP_HEADER_SIZE + 15] = (uint8_t)timesync_resp->t2_us;
+    buffer[QLCP_HEADER_SIZE + 0] = timesync_resp->ack_packet_type;
+    buffer[QLCP_HEADER_SIZE + 1] = timesync_resp->ack_sequence;
+
+    buffer[QLCP_HEADER_SIZE + 2] = (uint8_t)(timesync_resp->t1_echo_us >> 56);
+    buffer[QLCP_HEADER_SIZE + 3] = (uint8_t)(timesync_resp->t1_echo_us >> 48);
+    buffer[QLCP_HEADER_SIZE + 4] = (uint8_t)(timesync_resp->t1_echo_us >> 40);
+    buffer[QLCP_HEADER_SIZE + 5] = (uint8_t)(timesync_resp->t1_echo_us >> 32);
+    buffer[QLCP_HEADER_SIZE + 6] = (uint8_t)(timesync_resp->t1_echo_us >> 24);
+    buffer[QLCP_HEADER_SIZE + 7] = (uint8_t)(timesync_resp->t1_echo_us >> 16);
+    buffer[QLCP_HEADER_SIZE + 8] = (uint8_t)(timesync_resp->t1_echo_us >> 8);
+    buffer[QLCP_HEADER_SIZE + 9] = (uint8_t)timesync_resp->t1_echo_us;
+
+    buffer[QLCP_HEADER_SIZE + 10] = (uint8_t)(timesync_resp->t2_us >> 56);
+    buffer[QLCP_HEADER_SIZE + 11] = (uint8_t)(timesync_resp->t2_us >> 48);
+    buffer[QLCP_HEADER_SIZE + 12] = (uint8_t)(timesync_resp->t2_us >> 40);
+    buffer[QLCP_HEADER_SIZE + 13] = (uint8_t)(timesync_resp->t2_us >> 32);
+    buffer[QLCP_HEADER_SIZE + 14] = (uint8_t)(timesync_resp->t2_us >> 24);
+    buffer[QLCP_HEADER_SIZE + 15] = (uint8_t)(timesync_resp->t2_us >> 16);
+    buffer[QLCP_HEADER_SIZE + 16] = (uint8_t)(timesync_resp->t2_us >> 8);
+    buffer[QLCP_HEADER_SIZE + 17] = (uint8_t)timesync_resp->t2_us;
 
     return QLCP_OK;
 }
@@ -298,8 +301,11 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
         return ret;
     }
 
-    buffer[QLCP_HEADER_SIZE + 0] = status->device_status;
-    buffer[QLCP_HEADER_SIZE + 1] = status->control_count;
+    buffer[QLCP_HEADER_SIZE + 0] = status->ack_packet_type;
+    buffer[QLCP_HEADER_SIZE + 1] = status->ack_sequence;
+
+    buffer[QLCP_HEADER_SIZE + 2] = status->device_status;
+    buffer[QLCP_HEADER_SIZE + 3] = status->control_count;
 
     size_t offset = QLCP_STATUS_PACKET_SIZE(0);
     for (size_t i = 0; i < status->control_count; i++) {
@@ -487,7 +493,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
     case QLCP_PT_STATUS:
         {
             // Check that there is enough memory in buffers
-            uint8_t control_count = buffer[QLCP_HEADER_SIZE + 1];
+            uint8_t control_count = buffer[QLCP_HEADER_SIZE + 3];
             if (payload_buffers->control_data_len < control_count) {
                 return QLCP_NO_MEM;
             }
@@ -497,8 +503,11 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
             payload->payload_data.status.header.sequence = header_data.sequence;
             payload->payload_data.status.header.timestamp_us = header_data.timestamp_us;
 
-            payload->payload_data.status.device_status = buffer[QLCP_HEADER_SIZE + 0];
-            payload->payload_data.status.control_count = buffer[QLCP_HEADER_SIZE + 1];
+            payload->payload_data.status.ack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
+            payload->payload_data.status.ack_sequence = buffer[QLCP_HEADER_SIZE + 1];
+
+            payload->payload_data.status.device_status = buffer[QLCP_HEADER_SIZE + 2];
+            payload->payload_data.status.control_count = buffer[QLCP_HEADER_SIZE + 3];
 
             payload->payload_data.status.control_data = payload_buffers->control_data;
 
@@ -648,23 +657,26 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
         payload->payload_data.timesync_resp.header.sequence = header_data.sequence;
         payload->payload_data.timesync_resp.header.timestamp_us = header_data.timestamp_us;
 
-        payload->payload_data.timesync_resp.t1_echo_us = ((uint64_t)buffer[QLCP_HEADER_SIZE + 0] << 56) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 1] << 48) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 2] << 40) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 3] << 32) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 4] << 24) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 5] << 16) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 6] << 8) |
-                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 7]);
+        payload->payload_data.timesync_resp.ack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
+        payload->payload_data.timesync_resp.ack_sequence = buffer[QLCP_HEADER_SIZE + 1];
 
-        payload->payload_data.timesync_resp.t2_us = ((uint64_t)buffer[QLCP_HEADER_SIZE + 8] << 56) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 9] << 48) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 10] << 40) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 11] << 32) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 12] << 24) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 13] << 16) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 14] << 8) |
-                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 15]);
+        payload->payload_data.timesync_resp.t1_echo_us = ((uint64_t)buffer[QLCP_HEADER_SIZE + 2] << 56) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 3] << 48) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 4] << 40) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 5] << 32) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 6] << 24) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 7] << 16) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 8] << 8) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 9]);
+
+        payload->payload_data.timesync_resp.t2_us = ((uint64_t)buffer[QLCP_HEADER_SIZE + 10] << 56) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 11] << 48) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 12] << 40) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 13] << 32) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 14] << 24) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 15] << 16) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 16] << 8) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 17]);
 
         break;
     default:

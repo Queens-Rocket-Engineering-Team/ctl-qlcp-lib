@@ -78,20 +78,22 @@ These packets have no payload.
 
 ---
 
-### STATUS (19 + 2*N bytes, variable)
+### STATUS (21 + 2*N bytes, variable)
 
-Device status response and valve/control states.
+Device status response and valve/control states. This packet is sent as a response to CONTROL and STATUS_REQUEST, and should acknowledge it in its ack fields.
 
 ```
-Offset  Size  Type    Field   Description
-------  ----  ------  ------  -------------------------
-0-16    17    -       header  Standard header
-17      1     uint8   status  DeviceStatus enum value
-18      1     uint8   count   Number of valves/controls (N)
+Offset  Size  Type    Field            Description
+------  ----  ------  ------           -------------------------
+0-16    17    -       header           Standard header
+17      1     uint8   ack_packet_type  Type of packet being acknowledged
+18      1     uint8   ack_sequence     Sequence number of package being acknowledged
+19      1     uint8   status           DeviceStatus enum value
+20      1     uint8   count            Number of valves/controls (N)
 
 Repeated N times (2 bytes each):
-+0      1     uint8   command_id  Index in device's control array
-+1      1     uint8   command_state ControlState enum value
++0      1     uint8   control_id       Index in device's control array
++1      1     uint8   control_state    ControlState enum value
 ```
 
 ---
@@ -160,15 +162,17 @@ NTP-style clock synchronization, device-initiated. Uses a two-packet round-trip 
 
 Device stamps T1 = device_time_us() in the header TIMESTAMP field and sends.
 
-#### TIMESYNC_RESP (33 bytes)
+#### TIMESYNC_RESP (35 bytes)
 
-Server stamps T2 = server_time_us() on receipt, then stamps T3 = server_time_us() in the header TIMESTAMP field immediately before sending. Payload carries T1 and T2 so the device has all four timestamps on receipt.
+Server stamps T2 = server_time_us() on receipt, then stamps T3 = server_time_us() in the header TIMESTAMP field immediately before sending. Payload carries T1 and T2 so the device has all four timestamps on receipt. TIMESYNC_RESP should acnowledge the TIMESYNC_REQ recieved in its ack fields.
 
-Offset  Size  Type    Field       Description
-------  ----  ------  ----------  -------------------------
-0-16    17    -       header      Standard header (type=0x08, TIMESTAMP=T3)
-17      8     uint64  t1_echo_us  Echo of T1 from request header
-25      8     uint64  t2_us       Server receipt time (monotonic us)
+Offset  Size  Type    Field           Description
+------  ----  ------  ----------      -------------------------
+0-16    17    -       header          Standard header (type=0x08, TIMESTAMP=T3)
+17      1     uint8   ack_packet_type Type of packet being acknowledged
+18      1     uint8   ack_sequence    Sequence of packet being acknowledged
+19      8     uint64  t1_echo_us      Echo of T1 from request header
+27      8     uint64  t2_us           Server receipt time (monotonic us)
 
 #### Device behavior
 
@@ -191,7 +195,7 @@ After this, every packet the device sends has its timestamp locked to the server
 
 #### Initiation policy
 
-The device initiates a sync cycle immediately after receiving the ACK for its CONFIG packet, and then every 1 minutes thereafter.
+The device initiates a sync cycle immediately after receiving the ACK for its CONFIG packet, and then every 1 minute thereafter.
 
 #### Why this matters
 
@@ -201,7 +205,7 @@ One-way latency correction is essential: a naïve single-packet sync (server sta
 
 #### Why periodic resync
 
-ESP32 crystal oscillators drift approximately 10 ppm. Over 1 minutes this is ~0.6 ms; over 1 hour it is ~36 ms. At high sample rates (hundreds of Hz), where one sample period is 1–10 ms, this drift becomes significant during long test runs. The 1-minute maintenance interval keeps accumulated drift under ~0.6 ms between corrections.
+ESP32 crystal oscillators drift approximately 10 ppm. Over 1 minute this is ~0.6 ms; over 1 hour it is ~36 ms. At high sample rates (hundreds of Hz), where one sample period is 1–10 ms, this drift becomes significant during long test runs. The 1-minute maintenance interval keeps accumulated drift under ~0.6 ms between corrections.
 
 ---
 
@@ -252,13 +256,13 @@ Offset      Size      Type    Field       Description
 | STREAM_STOP    | 17               | (none)               |
 | GET_SINGLE     | 17               | (none)               |
 | TIMESYNC_REQ   | 17               | (none)               |
-| TIMESYNC_RESP  | 33               | 8B T1_echo + 8B T2   |
+| TIMESYNC_RESP  | 35               | 1B type + 1B seq + 8B T1_echo + 8B T2   |
 | STATUS_REQUEST | 17               | (none)               |
 | STREAM_START   | 19               | 2B frequency_hz      |
 | CONTROL        | 19               | 1B cmd_id + 1B state |
 | ACK            | 19               | 1B type + 1B seq |
 | NACK           | 20               | 1B type + 1B seq + 1B error |
-| STATUS         | 19 + 2*N         | 1B status + 1B count + N*(1B+1B) |
+| STATUS         | 21 + 2*N         | 1B type + 1B seq + 1B status + 1B count + N*(1B+1B) |
 | DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
 | CONFIG         | 17 + packet_len  | json_data   |
 
@@ -337,11 +341,10 @@ The device **must** send an ACK for the following packet types:
 
 | Packet Type  | Required Response |
 |--------------|-------------------|
-| CONTROL      | ACK (or NACK on error) |
-| TIMESYNC     | ACK |
+| HEARTBEAT    | ACK |
+| TIMESYNC_RESP| ACK |
 | STREAM_START | ACK (or NACK on error) |
 | STREAM_STOP  | ACK |
-| HEARTBEAT    | ACK |
 
 STATUS_REQUEST and GET_SINGLE do not require ACK — the device responds with a STATUS or DATA packet instead.
 
@@ -355,9 +358,13 @@ ESTOP does not require an ACK. The server assumes immediate compliance.
 
 On receiving GET_SINGLE, the device must take **one reading from every sensor** and send a single batched DATA packet containing all readings.
 
+### CONTROL
+
+On receiving CONTROL, the device must attempt to set the control state and send a STATUS packet with its current DeviceStatus and control states.
+
 ### STATUS_REQUEST
 
-On receiving STATUS_REQUEST, the device must send a STATUS packet with its current DeviceStatus.
+On receiving STATUS_REQUEST, the device must send a STATUS packet with its current DeviceStatus and control states.
 
 ### Unknown Packet Types
 
@@ -398,7 +405,7 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
    |<<------------ DATA (batched) -------|
    |                                     |
    |------------ CONTROL ------------>>  |  Valve/actuator command
-   |<<------------ ACK ------------------|
+   |<<----------- STATUS ----------------|
    |                                     |
    |------------ STREAM_STOP -------->>  |  Stop streaming
    |<<------------ ACK ------------------|
@@ -410,7 +417,7 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
 Key points:
 - The first packet on a new TCP connection is always CONFIG from the device.
 - Sequence numbers in ACK/NACK match the sequence of the original request.
-- Device sends TIMESYNC_REQ immediately after CONFIG ACK, then every 1 minutes.
+- Device sends TIMESYNC_REQ immediately after CONFIG ACK, then every 1 minute.
 - DATA packet timestamps come from the device clock, using the previous timesync to calculate offset
 
 ---
