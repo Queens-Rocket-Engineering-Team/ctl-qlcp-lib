@@ -4,7 +4,7 @@
 
 #include "qlcp_lib.h"
 
-#define QLCP_PROTOCOL_VERSION 2
+#define QLCP_PROTOCOL_VERSION 3
 
 // Internal header struct
 typedef struct {
@@ -12,7 +12,7 @@ typedef struct {
     uint8_t packet_type;
     uint8_t sequence;
     uint16_t packet_length;
-    uint32_t timestamp;
+    uint64_t timestamp_us;
 } qlcp_header_internal;
 
 // Encode a header_data struct into the buffer
@@ -31,10 +31,14 @@ static qlcp_lib_ret s_pack_header(uint8_t buffer[], size_t buffer_len, const qlc
     buffer[3] = (uint8_t)(header_data->packet_length >> 8);
     buffer[4] = (uint8_t)header_data->packet_length;
 
-    buffer[5] = (uint8_t)(header_data->timestamp >> 24);
-    buffer[6] = (uint8_t)(header_data->timestamp >> 16);
-    buffer[7] = (uint8_t)(header_data->timestamp >> 8);
-    buffer[8] = (uint8_t)header_data->timestamp;
+    buffer[5] = (uint8_t)(header_data->timestamp_us >> 56);
+    buffer[6] = (uint8_t)(header_data->timestamp_us >> 48);
+    buffer[7] = (uint8_t)(header_data->timestamp_us >> 40);
+    buffer[8] = (uint8_t)(header_data->timestamp_us >> 32);
+    buffer[9] = (uint8_t)(header_data->timestamp_us >> 24);
+    buffer[10] = (uint8_t)(header_data->timestamp_us >> 16);
+    buffer[11] = (uint8_t)(header_data->timestamp_us >> 8);
+    buffer[12] = (uint8_t)header_data->timestamp_us;
 
     return QLCP_OK;
 }
@@ -57,8 +61,14 @@ static qlcp_lib_ret s_unpack_header(qlcp_header_internal *header_data, const uin
 
     header_data->packet_length = ((uint16_t)buffer[3] << 8) | ((uint16_t)buffer[4]);
 
-    header_data->timestamp = ((uint32_t)buffer[5] << 24) | ((uint32_t)buffer[6] << 16) | ((uint32_t)buffer[7] << 8) |
-                             ((uint32_t)buffer[8]);
+    header_data->timestamp_us = ((uint32_t)buffer[5] << 56) |
+                                ((uint32_t)buffer[6] << 48) |
+                                ((uint32_t)buffer[7] << 40) |
+                                ((uint32_t)buffer[8] << 32) |
+                                ((uint32_t)buffer[9] << 24) |
+                                ((uint32_t)buffer[10] << 16) |
+                                ((uint32_t)buffer[11] << 8) |
+                                ((uint32_t)buffer[12]);
 
     return QLCP_OK;
 }
@@ -95,7 +105,7 @@ qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_
         .packet_type = packet_type,
         .sequence = header_only->sequence,
         .packet_length = QLCP_HEADER_SIZE,
-        .timestamp = header_only->timestamp,
+        .timestamp_us = header_only->timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -119,7 +129,7 @@ qlcp_lib_ret qlcp_encode_ack(uint8_t buffer[], size_t *buffer_len, const qlcp_ac
         .packet_type = QLCP_PT_ACK,
         .sequence = ack->header.sequence,
         .packet_length = QLCP_ACK_PACKET_SIZE,
-        .timestamp = ack->header.timestamp,
+        .timestamp_us = ack->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -148,7 +158,7 @@ qlcp_lib_ret qlcp_encode_nack(uint8_t buffer[], size_t *buffer_len, const qlcp_n
         .packet_type = QLCP_PT_NACK,
         .sequence = nack->header.sequence,
         .packet_length = QLCP_NACK_PACKET_SIZE,
-        .timestamp = nack->header.timestamp,
+        .timestamp_us = nack->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -177,7 +187,7 @@ qlcp_lib_ret qlcp_encode_stream_start(uint8_t buffer[], size_t *buffer_len, cons
         .packet_type = QLCP_PT_STREAM_START,
         .sequence = stream_start->header.sequence,
         .packet_length = QLCP_STREAM_START_PACKET_SIZE,
-        .timestamp = stream_start->header.timestamp,
+        .timestamp_us = stream_start->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -205,7 +215,7 @@ qlcp_lib_ret qlcp_encode_control(uint8_t buffer[], size_t *buffer_len, const qlc
         .packet_type = QLCP_PT_CONTROL,
         .sequence = control->header.sequence,
         .packet_length = QLCP_CONTROL_PACKET_SIZE,
-        .timestamp = control->header.timestamp,
+        .timestamp_us = control->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -233,7 +243,7 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
         .packet_type = QLCP_PT_STATUS,
         .sequence = status->header.sequence,
         .packet_length = QLCP_STATUS_PACKET_SIZE(status->control_count),
-        .timestamp = status->header.timestamp,
+        .timestamp_us = status->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -266,7 +276,7 @@ qlcp_lib_ret qlcp_encode_data(uint8_t buffer[], size_t *buffer_len, const qlcp_d
         .packet_type = QLCP_PT_DATA,
         .sequence = data->header.sequence,
         .packet_length = QLCP_DATA_PACKET_SIZE(data->sensor_count),
-        .timestamp = data->header.timestamp,
+        .timestamp_us = data->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -309,7 +319,7 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
         .packet_type = QLCP_PT_CONFIG,
         .sequence = config->header.sequence,
         .packet_length = QLCP_CONFIG_PACKET_SIZE(packet_data_len),
-        .timestamp = config->header.timestamp,
+        .timestamp_us = config->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -378,7 +388,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
             return QLCP_INVALID_PACKET_TYPE;
         }
         payload->payload_data.ack.header.sequence = header_data.sequence;
-        payload->payload_data.ack.header.timestamp = header_data.timestamp;
+        payload->payload_data.ack.header.timestamp_us = header_data.timestamp_us;
 
         payload->payload_data.ack.ack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
         payload->payload_data.ack.ack_sequence = buffer[QLCP_HEADER_SIZE + 1];
@@ -388,7 +398,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
             return QLCP_LEN_MISMATCH;
         }
         payload->payload_data.nack.header.sequence = header_data.sequence;
-        payload->payload_data.nack.header.timestamp = header_data.timestamp;
+        payload->payload_data.nack.header.timestamp_us = header_data.timestamp_us;
 
         payload->payload_data.nack.nack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
         payload->payload_data.nack.nack_sequence = buffer[QLCP_HEADER_SIZE + 1];
@@ -405,7 +415,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
                 return QLCP_LEN_MISMATCH;
             }
             payload->payload_data.status.header.sequence = header_data.sequence;
-            payload->payload_data.status.header.timestamp = header_data.timestamp;
+            payload->payload_data.status.header.timestamp_us = header_data.timestamp_us;
 
             payload->payload_data.status.device_status = buffer[QLCP_HEADER_SIZE + 0];
             payload->payload_data.status.control_count = buffer[QLCP_HEADER_SIZE + 1];
@@ -429,7 +439,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
                 return QLCP_LEN_MISMATCH;
             }
             payload->payload_data.data.header.sequence = header_data.sequence;
-            payload->payload_data.data.header.timestamp = header_data.timestamp;
+            payload->payload_data.data.header.timestamp_us = header_data.timestamp_us;
 
             payload->payload_data.data.sensor_count = sensor_count;
 
@@ -457,7 +467,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
                 return QLCP_LEN_MISMATCH;
             }
             payload->payload_data.config.header.sequence = header_data.sequence;
-            payload->payload_data.config.header.timestamp = header_data.timestamp;
+            payload->payload_data.config.header.timestamp_us = header_data.timestamp_us;
 
             payload->payload_data.config.config_data_len = data_len;
 
@@ -505,7 +515,7 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
             return QLCP_LEN_MISMATCH;
         }
         payload->payload_data.header_only.sequence = header_data.sequence;
-        payload->payload_data.header_only.timestamp = header_data.timestamp;
+        payload->payload_data.header_only.timestamp_us = header_data.timestamp_us;
         break;
     case QLCP_PT_ACK:
         if (header_data.packet_length != QLCP_ACK_PACKET_SIZE) {
@@ -515,7 +525,7 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
             return QLCP_INVALID_PACKET_TYPE;
         }
         payload->payload_data.ack.header.sequence = header_data.sequence;
-        payload->payload_data.ack.header.timestamp = header_data.timestamp;
+        payload->payload_data.ack.header.timestamp_us = header_data.timestamp_us;
 
         payload->payload_data.ack.ack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
         payload->payload_data.ack.ack_sequence = buffer[QLCP_HEADER_SIZE + 1];
@@ -525,7 +535,7 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
             return QLCP_LEN_MISMATCH;
         }
         payload->payload_data.nack.header.sequence = header_data.sequence;
-        payload->payload_data.nack.header.timestamp = header_data.timestamp;
+        payload->payload_data.nack.header.timestamp_us = header_data.timestamp_us;
 
         payload->payload_data.nack.nack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
         payload->payload_data.nack.nack_sequence = buffer[QLCP_HEADER_SIZE + 1];
@@ -536,7 +546,7 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
             return QLCP_LEN_MISMATCH;
         }
         payload->payload_data.stream_start.header.sequence = header_data.sequence;
-        payload->payload_data.stream_start.header.timestamp = header_data.timestamp;
+        payload->payload_data.stream_start.header.timestamp_us = header_data.timestamp_us;
 
         payload->payload_data.stream_start.stream_frequency = ((uint16_t)buffer[QLCP_HEADER_SIZE + 0] << 8) |
                                                               (uint16_t)buffer[QLCP_HEADER_SIZE + 1];
@@ -546,7 +556,7 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
             return QLCP_LEN_MISMATCH;
         }
         payload->payload_data.control.header.sequence = header_data.sequence;
-        payload->payload_data.control.header.timestamp = header_data.timestamp;
+        payload->payload_data.control.header.timestamp_us = header_data.timestamp_us;
 
         payload->payload_data.control.command_id = buffer[QLCP_HEADER_SIZE + 0];
         payload->payload_data.control.command_state = buffer[QLCP_HEADER_SIZE + 1];
