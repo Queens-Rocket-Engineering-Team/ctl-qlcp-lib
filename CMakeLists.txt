@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(qlcp LANGUAGES C)
+project(qlcp VERSION 3.0.0 LANGUAGES C)
 
 add_library(qlcp src/qlcp_lib.c)
 add_library(qlcp::qlcp ALIAS qlcp)
@@ -20,6 +20,23 @@ target_include_directories(qlcp
 
 # only run this when building the project, to allow use as subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    # turn tests off by default (must enable with flag -DBUILD_TESTING=ON)
+    set(BUILD_TESTING OFF CACHE BOOL "Enable testing for QLCP")
+
+    # testing setup
+    include(CTest)
+    if(BUILD_TESTING)
+        include(FetchContent)
+        # download unity testing framework if and only if running tests
+        FetchContent_Declare(
+            Unity
+            GIT_REPOSITORY https://github.com/ThrowTheSwitch/Unity.git
+            GIT_TAG        v2.6.1
+        )
+        FetchContent_MakeAvailable(Unity)
+
+        add_subdirectory(tests)
+    endif()
 
     # set up library installation
     include(GNUInstallDirs)
@@ -50,8 +67,15 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qlcp
     )
 
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/qlcpConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/qlcpConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/qlcpConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qlcp
     )
 
