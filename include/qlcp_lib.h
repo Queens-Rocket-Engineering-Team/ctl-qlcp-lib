@@ -97,8 +97,8 @@ typedef enum {
 #define QLCP_CONTROL_DATA_SIZE 2
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-#define QLCP_STATUS_DATA_SIZE(control_count) (2 + (QLCP_CONTROL_STATUS_DATA_SIZE * control_count))
-#define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * sensor_count))
+#define QLCP_STATUS_DATA_SIZE(control_count) (2 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
+#define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * (sensor_count)))
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
 #define QLCP_CONTROL_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_CONTROL_DATA_SIZE)
@@ -106,7 +106,7 @@ typedef enum {
 #define QLCP_NACK_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_NACK_DATA_SIZE)
 #define QLCP_STATUS_PACKET_SIZE(control_count) (QLCP_HEADER_SIZE + QLCP_STATUS_DATA_SIZE(control_count))
 #define QLCP_DATA_PACKET_SIZE(sensor_count) (QLCP_HEADER_SIZE + QLCP_DATA_DATA_SIZE(sensor_count))
-#define QLCP_CONFIG_PACKET_SIZE(config_len) (QLCP_HEADER_SIZE + config_len)
+#define QLCP_CONFIG_PACKET_SIZE(config_len) (QLCP_HEADER_SIZE + (config_len))
 
 //----------------------------------------------------------
 // Packet info structs
