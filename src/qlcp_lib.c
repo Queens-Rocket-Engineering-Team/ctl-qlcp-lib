@@ -139,7 +139,6 @@ qlcp_lib_ret qlcp_encode_ack(uint8_t buffer[], size_t *buffer_len, const qlcp_ac
 
     buffer[QLCP_HEADER_SIZE + 0] = ack->ack_packet_type;
     buffer[QLCP_HEADER_SIZE + 1] = ack->ack_sequence;
-    buffer[QLCP_HEADER_SIZE + 2] = QLCP_ERR_NONE; // ack always has no error code
 
     return QLCP_OK;
 }
@@ -384,9 +383,6 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
         if (header_data.packet_length != QLCP_ACK_PACKET_SIZE) {
             return QLCP_LEN_MISMATCH;
         }
-        if (buffer[QLCP_HEADER_SIZE + 2] != QLCP_ERR_NONE) {
-            return QLCP_INVALID_PACKET_TYPE;
-        }
         payload->payload_data.ack.header.sequence = header_data.sequence;
         payload->payload_data.ack.header.timestamp_us = header_data.timestamp_us;
 
@@ -520,9 +516,6 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
     case QLCP_PT_ACK:
         if (header_data.packet_length != QLCP_ACK_PACKET_SIZE) {
             return QLCP_LEN_MISMATCH;
-        }
-        if (buffer[QLCP_HEADER_SIZE + 2] != QLCP_ERR_NONE) {
-            return QLCP_INVALID_PACKET_TYPE;
         }
         payload->payload_data.ack.header.sequence = header_data.sequence;
         payload->payload_data.ack.header.timestamp_us = header_data.timestamp_us;
