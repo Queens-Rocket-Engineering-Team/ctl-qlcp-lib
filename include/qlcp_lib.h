@@ -13,6 +13,7 @@ typedef enum {
     QLCP_NULL_PTR,
     QLCP_NO_MEM,
     QLCP_LEN_MISMATCH,
+    QLCP_MAGIC_NUM_MISMATCH,
     QLCP_VERSION_MISMATCH,
     QLCP_INVALID_PACKET_TYPE,
 } qlcp_lib_ret;
@@ -87,20 +88,18 @@ typedef enum {
 // Packet sizes
 //----------------------------------------------------------
 
+#define QLCP_HEADER_SIZE 17
+
+#define QLCP_CONTROL_STATUS_DATA_SIZE 2
+#define QLCP_SENSOR_DATA_SIZE 6
+
 #define QLCP_STREAM_START_DATA_SIZE 2
 #define QLCP_CONTROL_DATA_SIZE 2
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-
-#define QLCP_CONTROL_STATUS_DATA_SIZE 2
 #define QLCP_STATUS_DATA_SIZE(control_count) (2 + (QLCP_CONTROL_STATUS_DATA_SIZE * control_count))
-
-#define QLCP_SENSOR_DATA_SIZE 6
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * sensor_count))
-
 #define QLCP_CONFIG_DATA_SIZE(config_len) (4 + config_len)
-
-#define QLCP_HEADER_SIZE 13
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
 #define QLCP_CONTROL_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_CONTROL_DATA_SIZE)
