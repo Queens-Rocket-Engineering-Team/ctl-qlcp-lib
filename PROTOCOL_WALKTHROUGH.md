@@ -120,9 +120,9 @@ Offset  Size  Type    Field          Description
 
 ---
 
-### ACK (16 bytes)
+### ACK (15 bytes)
 
-Positive acknowledgment. error_code is always 0x00.
+Positive acknowledgment.
 
 ```
 Offset  Size  Type    Field           Description
@@ -130,7 +130,6 @@ Offset  Size  Type    Field           Description
 0-12    13    -       header          Standard header (type=0x13)
 9       1     uint8   ack_packet_type Type of packet being acknowledged
 10      1     uint8   ack_sequence    Sequence number of acknowledged packet
-11      1     uint8   error_code      Always 0x00 (NONE) for ACK
 ```
 
 ---
@@ -228,7 +227,7 @@ Offset      Size      Type    Field       Description
 | STATUS         | 14               | 1B status            |
 | STREAM_START   | 15               | 2B frequency_hz      |
 | CONTROL        | 15               | 1B cmd_id + 1B state |
-| ACK            | 16               | 1B type + 1B seq + 1B error |
+| ACK            | 15               | 1B type + 1B seq |
 | NACK           | 16               | 1B type + 1B seq + 1B error |
 | TIMESYNC       | 13               | (none)               |
 | DATA           | 14 + 6*N         | 1B count + N*(1B+1B+4B) |
@@ -288,7 +287,7 @@ Value  Name
 ```
 Value  Name
 -----  --------------
-0x00   NONE            No error (used in ACK)
+0x00   NONE            No error
 0x01   UNKNOWN_TYPE    Unrecognized packet type
 0x02   INVALID_ID      Invalid sensor/control ID
 0x03   HARDWARE_FAULT  Hardware error
