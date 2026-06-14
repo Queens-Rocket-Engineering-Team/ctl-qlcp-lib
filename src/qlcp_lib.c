@@ -85,11 +85,11 @@ static inline bool s_is_packet_header_only(qlcp_packet_type packet_type) {
     switch (packet_type) {
     case QLCP_PT_ESTOP:
     case QLCP_PT_DISCOVERY:
-    case QLCP_PT_TIMESYNC:
-    case QLCP_PT_STREAM_STOP:
-    case QLCP_PT_GET_SINGLE:
     case QLCP_PT_HEARTBEAT:
     case QLCP_PT_STATUS_REQUEST:
+    case QLCP_PT_STREAM_STOP:
+    case QLCP_PT_GET_SINGLE:
+    case QLCP_PT_TIMESYNC_REQ:
         return true;
     default:
         return false;
@@ -231,6 +231,48 @@ qlcp_lib_ret qlcp_encode_control(uint8_t buffer[], size_t *buffer_len, const qlc
     return QLCP_OK;
 }
 
+qlcp_lib_ret qlcp_encode_timesync_resp(uint8_t buffer[], size_t *buffer_len, const qlcp_timesync_resp_packet *timesync_resp) {
+    if (buffer == NULL || buffer_len == NULL || timesync_resp == NULL) {
+        return QLCP_NULL_PTR;
+    }
+    if (*buffer_len < QLCP_TIMESYNC_RESP_PACKET_SIZE) {
+        return QLCP_NO_MEM;
+    }
+    *buffer_len = QLCP_TIMESYNC_RESP_PACKET_SIZE;
+
+    const qlcp_header_internal header_data = {
+        .packet_type = QLCP_PT_TIMESYNC_RESP,
+        .sequence = timesync_resp->header.sequence,
+        .packet_length = QLCP_TIMESYNC_RESP_PACKET_SIZE,
+        .timestamp_us = timesync_resp->header.timestamp_us,
+    };
+
+    qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
+    if (ret != QLCP_OK) {
+        return ret;
+    }
+    // TODO: add helper function private header for stuff like this
+    buffer[QLCP_HEADER_SIZE + 0] = (uint8_t)(timesync_resp->t1_echo_us >> 56);
+    buffer[QLCP_HEADER_SIZE + 1] = (uint8_t)(timesync_resp->t1_echo_us >> 48);
+    buffer[QLCP_HEADER_SIZE + 2] = (uint8_t)(timesync_resp->t1_echo_us >> 40);
+    buffer[QLCP_HEADER_SIZE + 3] = (uint8_t)(timesync_resp->t1_echo_us >> 32);
+    buffer[QLCP_HEADER_SIZE + 4] = (uint8_t)(timesync_resp->t1_echo_us >> 24);
+    buffer[QLCP_HEADER_SIZE + 5] = (uint8_t)(timesync_resp->t1_echo_us >> 16);
+    buffer[QLCP_HEADER_SIZE + 6] = (uint8_t)(timesync_resp->t1_echo_us >> 8);
+    buffer[QLCP_HEADER_SIZE + 7] = (uint8_t)timesync_resp->t1_echo_us;
+
+    buffer[QLCP_HEADER_SIZE + 8] = (uint8_t)(timesync_resp->t2_us >> 56);
+    buffer[QLCP_HEADER_SIZE + 9] = (uint8_t)(timesync_resp->t2_us >> 48);
+    buffer[QLCP_HEADER_SIZE + 10] = (uint8_t)(timesync_resp->t2_us >> 40);
+    buffer[QLCP_HEADER_SIZE + 11] = (uint8_t)(timesync_resp->t2_us >> 32);
+    buffer[QLCP_HEADER_SIZE + 12] = (uint8_t)(timesync_resp->t2_us >> 24);
+    buffer[QLCP_HEADER_SIZE + 13] = (uint8_t)(timesync_resp->t2_us >> 16);
+    buffer[QLCP_HEADER_SIZE + 14] = (uint8_t)(timesync_resp->t2_us >> 8);
+    buffer[QLCP_HEADER_SIZE + 15] = (uint8_t)timesync_resp->t2_us;
+
+    return QLCP_OK;
+}
+
 qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp_status_packet *status) {
     if (buffer == NULL || buffer_len == NULL || status == NULL || status->control_data == NULL) {
         return QLCP_NULL_PTR;
@@ -310,7 +352,7 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
     }
     uint32_t packet_data_len = config->config_data_len;
     if (config->config_data_len > 0 && config->config_data[config->config_data_len - 1] == '\0') {
-        packet_data_len--; // Remove null terminator from config_data
+        packet_data_len--; // Remove null terminator from config_data (should always be raw binary)
     }
     if (*buffer_len < QLCP_CONFIG_PACKET_SIZE(packet_data_len)) {
         return QLCP_NO_MEM;
@@ -377,6 +419,13 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
     payload->packet_type = header_data.packet_type;
 
     switch (header_data.packet_type) {
+    case QLCP_PT_TIMESYNC_REQ:
+        if (header_data.packet_length != QLCP_HEADER_SIZE) {
+            return QLCP_LEN_MISMATCH;
+        }
+        payload->payload_data.header_only.sequence = header_data.sequence;
+        payload->payload_data.header_only.timestamp_us = header_data.timestamp_us;
+        break;
     case QLCP_PT_ACK:
         if (header_data.packet_length != QLCP_ACK_PACKET_SIZE) {
             return QLCP_LEN_MISMATCH;
@@ -459,7 +508,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
         break;
     case QLCP_PT_CONFIG:
         {
-            const uint32_t config_len = header_data.packet_length - QLCP_CONFIG_PACKET_SIZE(0);
+            const uint16_t config_len = header_data.packet_length - QLCP_CONFIG_PACKET_SIZE(0);
             // Check that there is enough memory in buffers
             if (payload_buffers->config_data_len < config_len) {
                 return QLCP_NO_MEM;
@@ -469,7 +518,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
 
             payload->payload_data.config.config_data_len = config_len;
             payload->payload_data.config.config_data = payload_buffers->config_data;
-
+            // config_data is not null terminated
             memcpy(payload_buffers->config_data, buffer + QLCP_CONFIG_PACKET_SIZE(0), config_len);
         }
         break;
@@ -504,7 +553,6 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
     switch (header_data.packet_type) {
     case QLCP_PT_ESTOP:
     case QLCP_PT_DISCOVERY:
-    case QLCP_PT_TIMESYNC:
     case QLCP_PT_STREAM_STOP:
     case QLCP_PT_GET_SINGLE:
     case QLCP_PT_HEARTBEAT:
@@ -555,6 +603,32 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
 
         payload->payload_data.control.control_id = buffer[QLCP_HEADER_SIZE + 0];
         payload->payload_data.control.control_state = buffer[QLCP_HEADER_SIZE + 1];
+        break;
+    case QLCP_PT_TIMESYNC_RESP:
+        if (header_data.packet_length != QLCP_TIMESYNC_RESP_PACKET_SIZE) {
+            return QLCP_LEN_MISMATCH;
+        }
+        payload->payload_data.timesync_resp.header.sequence = header_data.sequence;
+        payload->payload_data.timesync_resp.header.timestamp_us = header_data.timestamp_us;
+
+        payload->payload_data.timesync_resp.t1_echo_us = ((uint64_t)buffer[QLCP_HEADER_SIZE + 0] << 56) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 1] << 48) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 2] << 40) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 3] << 32) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 4] << 24) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 5] << 16) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 6] << 8) |
+                                                         ((uint64_t)buffer[QLCP_HEADER_SIZE + 7]);
+
+        payload->payload_data.timesync_resp.t2_us = ((uint64_t)buffer[QLCP_HEADER_SIZE + 8] << 56) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 9] << 48) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 10] << 40) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 11] << 32) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 12] << 24) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 13] << 16) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 14] << 8) |
+                                                    ((uint64_t)buffer[QLCP_HEADER_SIZE + 15]);
+
         break;
     default:
         return QLCP_INVALID_PACKET_TYPE;
