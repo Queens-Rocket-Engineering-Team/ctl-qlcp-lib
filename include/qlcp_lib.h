@@ -99,7 +99,6 @@ typedef enum {
 #define QLCP_NACK_DATA_SIZE 3
 #define QLCP_STATUS_DATA_SIZE(control_count) (2 + (QLCP_CONTROL_STATUS_DATA_SIZE * control_count))
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * sensor_count))
-#define QLCP_CONFIG_DATA_SIZE(config_len) (4 + config_len)
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
 #define QLCP_CONTROL_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_CONTROL_DATA_SIZE)
@@ -107,7 +106,7 @@ typedef enum {
 #define QLCP_NACK_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_NACK_DATA_SIZE)
 #define QLCP_STATUS_PACKET_SIZE(control_count) (QLCP_HEADER_SIZE + QLCP_STATUS_DATA_SIZE(control_count))
 #define QLCP_DATA_PACKET_SIZE(sensor_count) (QLCP_HEADER_SIZE + QLCP_DATA_DATA_SIZE(sensor_count))
-#define QLCP_CONFIG_PACKET_SIZE(config_len) (QLCP_HEADER_SIZE + QLCP_CONFIG_DATA_SIZE(config_len))
+#define QLCP_CONFIG_PACKET_SIZE(config_len) (QLCP_HEADER_SIZE + config_len)
 
 //----------------------------------------------------------
 // Packet info structs
@@ -143,8 +142,8 @@ typedef struct {
 
 typedef struct {
     qlcp_header header;
-    uint8_t command_id;
-    uint8_t command_state;
+    uint8_t control_id;
+    uint8_t control_state;
 } qlcp_control_packet;
 
 typedef struct {
@@ -250,7 +249,7 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
 // payload, as a tagged union.
 //----------------------------------------------------------
 
-qlcp_lib_ret qlcp_get_packet_len(uint16_t *data_len, const uint8_t buffer[], size_t buffer_len);
+qlcp_lib_ret qlcp_get_packet_len(uint16_t *packet_len, const uint8_t buffer[], size_t buffer_len);
 
 qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_server_payload_buffers *payload_buffers, const uint8_t buffer[], size_t buffer_len);
 

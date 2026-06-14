@@ -115,8 +115,8 @@ Control command for valves/actuators.
 Offset  Size  Type    Field          Description
 ------  ----  ------  -------------  -------------------------
 0-16    17    -       header         Standard header
-17      1     uint8   command_id     Index in device's control array
-18      1     uint8   command_state  ControlState enum value
+17      1     uint8   control_id     Index in device's control array
+18      1     uint8   control_state  ControlState enum value
 ```
 
 ---
@@ -201,16 +201,15 @@ A single reading uses N=1 (24 bytes total). Example with 3 sensors:
 
 ---
 
-### CONFIG (21 + json_len bytes, variable)
+### CONFIG (17 + packet_len bytes, variable)
 
-Device configuration sent on connection. LENGTH = 21 + json_len.
+Device configuration sent on connection. LENGTH = 17 + packet_len.
 
 ```
 Offset      Size      Type    Field       Description
 ------      ----      ------  ----------  -------------------------
 0-16        17        -       header      Standard header
-17          4         uint32  json_length Length of JSON data in bytes
-21          json_len  bytes   json_data   UTF-8 encoded JSON string
+17          packet_len  bytes   json_data   UTF-8 encoded JSON string
 ```
 
 ---
@@ -226,13 +225,13 @@ Offset      Size      Type    Field       Description
 | GET_SINGLE     | 17               | (none)               |
 | TIMESYNC       | 17               | (none)               |
 | STATUS_REQUEST | 17               | (none)               |
-| STATUS         | 18               | 1B status            |
 | STREAM_START   | 19               | 2B frequency_hz      |
 | CONTROL        | 19               | 1B cmd_id + 1B state |
 | ACK            | 19               | 1B type + 1B seq |
 | NACK           | 20               | 1B type + 1B seq + 1B error |
+| STATUS         | 19 + 2*N         | 1B status + 1B count + N*(1B+1B) |
 | DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
-| CONFIG         | 21 + json_len    | 4B len + json_data   |
+| CONFIG         | 17 + packet_len  | json_data   |
 
 ---
 
