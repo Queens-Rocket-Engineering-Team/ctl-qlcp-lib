@@ -10,7 +10,7 @@ The QLCP protocol is a binary protocol used by launch control for ground communi
 
 The server announces its presence via multicast with a DISCOVERY packet. Devices listen for this broadcast to discover the server.
 
-- Multicast address: `239.0.0.0`
+- Multicast address: `239.100.0.1`
 - Multicast port: `10000`
 
 When a device receives a DISCOVERY packet, it extracts the server's IP address from the UDP source address of the packet. It then opens a TCP connection to the server.

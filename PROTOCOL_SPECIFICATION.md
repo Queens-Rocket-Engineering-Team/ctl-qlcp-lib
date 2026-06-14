@@ -350,7 +350,7 @@ STATUS_REQUEST, CONTROL, and GET_SINGLE do not require ACK — the device respon
 
 ### DISCOVERY
 
-The server broadcasts DISCOVERY packets to the multicast group 239.0.0.0:10000. When the device is disconnected from the server, it should listen to this multicast group and search for the DISCOVERY packet to get the server's IP.
+The server broadcasts DISCOVERY packets to the multicast group 239.100.0.1:10000. When the device is disconnected from the server, it should listen to this multicast group and search for the DISCOVERY packet to get the server's IP.
 
 ### ESTOP
 
@@ -381,7 +381,7 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
 ```
  Server                                Device
    |                                     |
-   |------------ DISCOVERY ----------->> |  1. Server multicasts on 239.0.0.0:10000
+   |------------ DISCOVERY ----------->> |  1. Server multicasts on 239.100.0.1:10000
    |                                     |
    |<<----------- TCP connect -----------|  2. Device opens TCP to server:50000
    |                                     |
