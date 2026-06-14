@@ -166,6 +166,7 @@ Device stamps T1 = device_time_us() in the header TIMESTAMP field and sends.
 
 Server stamps T2 = server_time_us() on receipt, then stamps T3 = server_time_us() in the header TIMESTAMP field immediately before sending. Payload carries T1 and T2 so the device has all four timestamps on receipt. TIMESYNC_RESP should acnowledge the TIMESYNC_REQ recieved in its ack fields.
 
+```
 Offset  Size  Type    Field           Description
 ------  ----  ------  ----------      -------------------------
 0-16    17    -       header          Standard header (type=0x08, TIMESTAMP=T3)
@@ -173,6 +174,7 @@ Offset  Size  Type    Field           Description
 18      1     uint8   ack_sequence    Sequence of packet being acknowledged
 19      8     uint64  t1_echo_us      Echo of T1 from request header
 27      8     uint64  t2_us           Server receipt time (monotonic us)
+```
 
 #### Device behavior
 
@@ -400,7 +402,8 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
    |------------ HEARTBEAT ---------->>  |  Periodic keep-alive (every 5s)
    |<<------------ ACK ------------------|
    |                                     |
-   |<<------------ TIMESYNC -----------  |  Periodic resync (every 1 min)
+   |<<------- TIMESYNC_REQ packet -------|  Periodic resync (every 1 min)
+   |--------- TIMESYNC_RESP --------->>  |  
    |<<------------ ACK ------------------|
    |                                     |
    |------------ STREAM_START ------->>  |  Start data streaming
