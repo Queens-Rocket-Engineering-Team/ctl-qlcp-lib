@@ -96,10 +96,10 @@ typedef enum {
 
 #define QLCP_STREAM_START_DATA_SIZE 2
 #define QLCP_CONTROL_DATA_SIZE 2
-#define QLCP_TIMESYNC_RESP_DATA_SIZE 16
+#define QLCP_TIMESYNC_RESP_DATA_SIZE 18
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-#define QLCP_STATUS_DATA_SIZE(control_count) (2 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
+#define QLCP_STATUS_DATA_SIZE(control_count) (4 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * (sensor_count)))
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
@@ -151,6 +151,8 @@ typedef struct {
 
 typedef struct {
     qlcp_header header;
+    uint8_t ack_packet_type;
+    uint8_t ack_sequence;
     uint64_t t1_echo_us;
     uint64_t t2_us;
 } qlcp_timesync_resp_packet;
@@ -172,9 +174,11 @@ typedef struct {
 
 typedef struct {
     qlcp_header header;
+    uint8_t ack_packet_type;
+    uint8_t ack_sequence;
+    uint8_t device_status;
     const qlcp_control_data *control_data;
     uint8_t control_count;
-    uint8_t device_status;
 } qlcp_status_packet;
 
 typedef struct {
