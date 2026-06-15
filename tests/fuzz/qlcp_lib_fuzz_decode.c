@@ -3,7 +3,15 @@
 #include <string.h>
 #include "qlcp_lib.h"
 
+static qlcp_sensor_data g_sensor_buffer[200];
+static qlcp_control_data g_control_buffer[200];
+static uint8_t g_config_buffer[4096];
+
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+
+    memset(g_sensor_buffer, 0, sizeof(g_sensor_buffer));
+    memset(g_control_buffer, 0, sizeof(g_control_buffer));
+    memset(g_config_buffer, 0, sizeof(g_config_buffer));
     
     // decode helper fuzzing
     size_t magic_num_idx = 0;
@@ -19,17 +27,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // server decode fuzzing
     qlcp_server_payload server_payload = {0};
 
-    qlcp_sensor_data sensor_buffer[200] = {0};
-    qlcp_control_data control_buffer[200] = {0};
-    uint8_t config_buffer[4096] = {0};
-
     qlcp_server_payload_buffers payload_buffers = {
-        .sensor_data = sensor_buffer,
-        .sensor_data_len = sizeof(sensor_buffer)/sizeof(sensor_buffer[0]),
-        .control_data = control_buffer,
-        .control_data_len = sizeof(control_buffer)/sizeof(control_buffer[0]),
-        .config_data = config_buffer,
-        .config_data_len = sizeof(config_buffer)
+        .sensor_data = g_sensor_buffer,
+        .sensor_data_len = sizeof(g_sensor_buffer)/sizeof(g_sensor_buffer[0]),
+        .control_data = g_control_buffer,
+        .control_data_len = sizeof(g_control_buffer)/sizeof(g_control_buffer[0]),
+        .config_data = g_config_buffer,
+        .config_data_len = sizeof(g_config_buffer)
     };
 
     qlcp_decode_client_to_server(&server_payload, &payload_buffers, data, size);
