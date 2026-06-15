@@ -362,7 +362,7 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
     }
     uint32_t packet_data_len = config->config_data_len;
     if (config->config_data_len > 0 && config->config_data[config->config_data_len - 1] == '\0') {
-        packet_data_len--; // Remove null terminator from config_data (should always be raw binary)
+        packet_data_len--; // Remove null terminator from config_data if present (should always be raw binary)
     }
     if (*buffer_len < QLCP_CONFIG_PACKET_SIZE(packet_data_len)) {
         return QLCP_NO_MEM;
@@ -493,6 +493,9 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
         break;
     case QLCP_PT_STATUS:
         {
+            if (buffer_len < QLCP_STATUS_PACKET_SIZE(0)) {
+                return QLCP_NO_MEM;
+            }
             // Check that there is enough memory in buffers
             uint8_t control_count = buffer[QLCP_HEADER_SIZE + 3];
             if (payload_buffers->control_data_len < control_count) {
@@ -523,6 +526,9 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
         break;
     case QLCP_PT_DATA:
         {
+            if (buffer_len < QLCP_DATA_PACKET_SIZE(0)) {
+                return QLCP_NO_MEM;
+            }
             // Check that there is enough memory in buffers
             uint8_t sensor_count = buffer[QLCP_HEADER_SIZE + 0];
             if (payload_buffers->sensor_data_len < sensor_count) {
