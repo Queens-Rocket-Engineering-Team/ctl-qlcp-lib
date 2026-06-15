@@ -12,8 +12,8 @@ add_custom_target(RUN_DECODE_FUZZER
             ${CMAKE_CURRENT_SOURCE_DIR}/decode_corpus_seed/
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     DEPENDS fuzz_qlcp_decode
-            ${CMAKE_BINARY_DIR}/qlcp_lib_fuzz.dict
-            ${CMAKE_BINARY_DIR}/decode_corpus_seed
+            ${CMAKE_CURRENT_SOURCE_DIR}/qlcp_lib_fuzz.dict
+            ${CMAKE_CURRENT_SOURCE_DIR}/decode_corpus_seed
     COMMENT "Running the decoder fuzzer"
     USES_TERMINAL
 )
