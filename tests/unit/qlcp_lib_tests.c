@@ -148,8 +148,8 @@ void test_header_only_encode_decode(void) {
 
         size_t buffer_len = sizeof(g_buffer);
         qlcp_lib_ret encode_ret = qlcp_encode_header_only(g_buffer, &buffer_len, &header_only);
-        
         TEST_ASSERT_EQUAL_INT(test_cases[i].expected_encode_ret, encode_ret);
+
         if (encode_ret == QLCP_OK) {
             run_decode_generic(g_buffer, buffer_len, test_cases[i]);
         }
@@ -174,7 +174,8 @@ void test_ack_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_ack(g_buffer, &buffer_len, &ack));
+    qlcp_lib_ret encode_ret = qlcp_encode_ack(g_buffer, &buffer_len, &ack);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(ack.ack_packet_type, g_client_payload.payload_data.ack.ack_packet_type);
@@ -204,7 +205,8 @@ void test_nack_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_nack(g_buffer, &buffer_len, &nack));
+    qlcp_lib_ret encode_ret = qlcp_encode_nack(g_buffer, &buffer_len, &nack);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(nack.nack_packet_type, g_client_payload.payload_data.nack.nack_packet_type);
@@ -235,7 +237,8 @@ void test_control_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_control(g_buffer, &buffer_len, &control));
+    qlcp_lib_ret encode_ret = qlcp_encode_control(g_buffer, &buffer_len, &control);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(control.control_id, g_client_payload.payload_data.control.control_id);
@@ -260,7 +263,8 @@ void test_stream_start_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_stream_start(g_buffer, &buffer_len, &stream_start));
+    qlcp_lib_ret encode_ret = qlcp_encode_stream_start(g_buffer, &buffer_len, &stream_start);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT16(stream_start.stream_frequency, g_client_payload.payload_data.stream_start.stream_frequency);
@@ -287,7 +291,8 @@ void test_timesync_resp_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_timesync_resp(g_buffer, &buffer_len, &timesync_resp));
+    qlcp_lib_ret encode_ret = qlcp_encode_timesync_resp(g_buffer, &buffer_len, &timesync_resp);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(timesync_resp.ack_packet_type, g_client_payload.payload_data.timesync_resp.ack_packet_type);
@@ -317,7 +322,8 @@ void test_config_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_config(g_buffer, &buffer_len, &config));
+    qlcp_lib_ret encode_ret = qlcp_encode_config(g_buffer, &buffer_len, &config);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_MEMORY(dummy_json, g_server_payload.payload_data.config.config_data, sizeof(dummy_json) - 1);
@@ -355,7 +361,8 @@ void test_data_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_data(g_buffer, &buffer_len, &data));
+    qlcp_lib_ret encode_ret = qlcp_encode_data(g_buffer, &buffer_len, &data);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(data.sensor_count, g_server_payload.payload_data.data.sensor_count);
@@ -398,7 +405,8 @@ void test_status_encode_decode(void) {
     };
 
     size_t buffer_len = sizeof(g_buffer);
-    TEST_ASSERT_EQUAL_INT(QLCP_OK, qlcp_encode_status(g_buffer, &buffer_len, &status));
+    qlcp_lib_ret encode_ret = qlcp_encode_status(g_buffer, &buffer_len, &status);
+    TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(status.ack_packet_type, g_server_payload.payload_data.status.ack_packet_type);
