@@ -42,8 +42,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     option(ENABLE_FUZZING "Enable libFuzzer" OFF)
 
     if(ENABLE_FUZZING)
-        add_compile_options(-fsanitize=fuzzer-no-link,address)
-        add_link_options(-fsanitize=fuzzer,address)
+        add_compile_options(-fsanitize=fuzzer-no-link,address,undefined)
+        add_link_options(-fsanitize=fuzzer,address,undefined)
 
         add_subdirectory(tests/fuzz)
     endif()

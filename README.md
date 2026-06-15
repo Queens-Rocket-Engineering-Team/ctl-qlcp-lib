@@ -6,7 +6,7 @@ The QLCP protocol is a binary protocol used by launch control for ground communi
 
 ## Network Configuration
 
-### SSDP Discovery
+### Discovery
 
 The server announces its presence via multicast with a DISCOVERY packet. Devices listen for this broadcast to discover the server.
 

@@ -4,8 +4,8 @@
 #include "unity.h"
 #include "qlcp_lib.h"
 
-const uint8_t sequence = UINT8_MAX;
-const uint64_t timestamp_us = UINT64_MAX;
+static const uint8_t sequence = UINT8_MAX;
+static const uint64_t timestamp_us = UINT64_MAX;
 
 // global test state
 static uint8_t g_buffer[4096];
