@@ -14,7 +14,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     // client decode fuzzing
     qlcp_client_payload client_payload = {0};
-    memset(&client_payload, 0, sizeof(client_payload));
     qlcp_decode_server_to_client(&client_payload, data, size);
 
     // server decode fuzzing
@@ -33,7 +32,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         .config_data_len = sizeof(config_buffer)
     };
 
-    memset(&server_payload, 0, sizeof(server_payload));
     qlcp_decode_client_to_server(&server_payload, &payload_buffers, data, size);
 
     return 0; 
