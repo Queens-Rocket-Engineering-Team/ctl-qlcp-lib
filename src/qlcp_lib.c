@@ -100,11 +100,11 @@ static inline bool s_is_packet_header_only(qlcp_packet_type packet_type) {
 // Encoding implementation
 //----------------------------------------------------------
 
-qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_packet_type packet_type, const qlcp_header_only_packet *header_only) {
+qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, const qlcp_header_only_packet *header_only) {
     if (buffer == NULL || buffer_len == NULL || header_only == NULL) {
         return QLCP_NULL_PTR;
     }
-    if (!s_is_packet_header_only(packet_type)) {
+    if (!s_is_packet_header_only(header_only->packet_type)) {
         return QLCP_INVALID_PACKET_TYPE;
     }
     if (*buffer_len < QLCP_HEADER_SIZE) {
@@ -113,10 +113,10 @@ qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_
     *buffer_len = QLCP_HEADER_SIZE;
 
     const qlcp_header_internal header_data = {
-        .packet_type = packet_type,
-        .sequence = header_only->sequence,
+        .packet_type = header_only->packet_type,
+        .sequence = header_only->header.sequence,
         .packet_length = QLCP_HEADER_SIZE,
-        .timestamp_us = header_only->timestamp_us,
+        .timestamp_us = header_only->header.timestamp_us,
     };
 
     qlcp_lib_ret ret = s_pack_header(buffer, *buffer_len, &header_data);
@@ -466,8 +466,9 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
         if (header_data.packet_length != QLCP_HEADER_SIZE) {
             return QLCP_LEN_MISMATCH;
         }
-        payload->payload_data.header_only.sequence = header_data.sequence;
-        payload->payload_data.header_only.timestamp_us = header_data.timestamp_us;
+        payload->payload_data.header_only.header.sequence = header_data.sequence;
+        payload->payload_data.header_only.header.timestamp_us = header_data.timestamp_us;
+        payload->payload_data.header_only.packet_type = header_data.packet_type;
         break;
     case QLCP_PT_ACK:
         if (header_data.packet_length != QLCP_ACK_PACKET_SIZE) {
@@ -606,8 +607,9 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
         if (header_data.packet_length != QLCP_HEADER_SIZE) {
             return QLCP_LEN_MISMATCH;
         }
-        payload->payload_data.header_only.sequence = header_data.sequence;
-        payload->payload_data.header_only.timestamp_us = header_data.timestamp_us;
+        payload->payload_data.header_only.header.sequence = header_data.sequence;
+        payload->payload_data.header_only.header.timestamp_us = header_data.timestamp_us;
+        payload->payload_data.header_only.packet_type = header_data.packet_type;
         break;
     case QLCP_PT_ACK:
         if (header_data.packet_length != QLCP_ACK_PACKET_SIZE) {
