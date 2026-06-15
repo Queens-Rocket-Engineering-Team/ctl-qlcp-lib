@@ -192,7 +192,7 @@ typedef struct {
 
 typedef struct {
     qlcp_header header;
-    const char *config_data;
+    const uint8_t *config_data;
     uint16_t config_data_len;
 } qlcp_config_packet;
 
@@ -203,7 +203,7 @@ typedef struct {
     uint8_t control_data_len;
     qlcp_sensor_data *sensor_data;
     uint8_t sensor_data_len;
-    char *config_data;
+    uint8_t *config_data;
     uint16_t config_data_len;
 } qlcp_server_payload_buffers;
 

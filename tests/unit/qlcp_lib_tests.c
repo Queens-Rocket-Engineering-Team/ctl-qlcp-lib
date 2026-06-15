@@ -33,7 +33,7 @@ void setUp(void) {
     g_server_payload_buffers.control_data = g_control_buffer;
     g_server_payload_buffers.control_data_len = sizeof(g_control_buffer)/sizeof(g_control_buffer[0]);
     
-    g_server_payload_buffers.config_data = (char*)g_config_buffer;
+    g_server_payload_buffers.config_data = g_config_buffer;
     g_server_payload_buffers.config_data_len = sizeof(g_config_buffer);
 }
 
@@ -299,7 +299,7 @@ void test_timesync_resp_encode_decode(void) {
 }
 
 void test_config_encode_decode(void) {
-    const char dummy_json[] = "{\"device_name\": \"DEVICE_NAME\"}";
+    const uint8_t dummy_json[] = "{\"device_name\": \"DEVICE_NAME\"}";
     qlcp_test_case_t test_case = {
         .packet_type = QLCP_PT_CONFIG,
         .expected_encode_ret = QLCP_OK,

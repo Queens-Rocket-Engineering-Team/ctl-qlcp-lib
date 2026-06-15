@@ -35,7 +35,17 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         )
         FetchContent_MakeAvailable(Unity)
 
-        add_subdirectory(tests)
+        add_subdirectory(tests/unit)
+    endif()
+
+    # fuzzing setup
+    option(ENABLE_FUZZING "Enable libFuzzer" OFF)
+
+    if(ENABLE_FUZZING)
+        add_compile_options(-fsanitize=fuzzer-no-link,address)
+        add_link_options(-fsanitize=fuzzer,address)
+
+        add_subdirectory(tests/fuzz)
     endif()
 
     # set up library installation
