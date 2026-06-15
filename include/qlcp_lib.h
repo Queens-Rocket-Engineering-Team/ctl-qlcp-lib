@@ -136,7 +136,10 @@ typedef struct {
 
 // Packet structs
 
-typedef qlcp_header qlcp_header_only_packet;
+typedef struct {
+    qlcp_header header;
+    uint8_t packet_type;
+} qlcp_header_only_packet;
 
 typedef struct {
     qlcp_header header;
@@ -237,7 +240,7 @@ typedef struct {
 // the packet in the buffer.
 //----------------------------------------------------------
 
-qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, qlcp_packet_type packet_type, const qlcp_header_only_packet *header_only);
+qlcp_lib_ret qlcp_encode_header_only(uint8_t buffer[], size_t *buffer_len, const qlcp_header_only_packet *header_only);
 
 qlcp_lib_ret qlcp_encode_stream_start(uint8_t buffer[], size_t *buffer_len, const qlcp_stream_start_packet *stream_start);
 
