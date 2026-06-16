@@ -457,13 +457,13 @@ Length: 17 + packet_len bytes
 
 Direction: Device -> Server
 
-Purpose: Device configuration sent on connection. Defines the device's control and sensor configuration.
+Purpose: Device configuration sent on connection. Defines the device's control and sensor configuration. json_len is found from the packet_len field in the header.
 
 ```
 Offset      Size      Type    Field       Description
 ------      ----      ------  ----------  -------------------------
 0-16        17        -       header      Standard header
-17          packet_len  bytes   json_data   UTF-8 encoded JSON string
+17          json_len  bytes   json_data   UTF-8 encoded JSON string
 ```
 
 ---
@@ -486,7 +486,7 @@ Offset      Size      Type    Field       Description
 | NACK           | 20               | 1B type + 1B seq + 1B error |
 | STATUS         | 20 + 6*N         | 1B type + 1B seq + 1B count + N*(1B+1B+4B) |
 | DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
-| CONFIG         | 17 + packet_len  | json_data   |
+| CONFIG         | 17 + json_len    | json_data   |
 
 ---
 
