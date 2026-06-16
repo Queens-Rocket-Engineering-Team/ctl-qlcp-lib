@@ -40,14 +40,6 @@ typedef enum {
 } qlcp_packet_type;
 
 typedef enum {
-    // Device status
-    QLCP_DS_INACTIVE = 0x00,
-    QLCP_DS_ACTIVE = 0x01,
-    QLCP_DS_ERROR = 0x02,
-    QLCP_DS_CALIBRATING = 0x03,
-} qlcp_device_status;
-
-typedef enum {
     // Control state
     QLCP_CS_CLOSED = 0x00,
     QLCP_CS_OPEN = 0x01,
@@ -99,7 +91,7 @@ typedef enum {
 #define QLCP_TIMESYNC_RESP_DATA_SIZE 18
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-#define QLCP_STATUS_DATA_SIZE(control_count) (4 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
+#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * (sensor_count)))
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
@@ -179,21 +171,20 @@ typedef struct {
     qlcp_header header;
     uint8_t ack_packet_type;
     uint8_t ack_sequence;
-    uint8_t device_status;
-    const qlcp_control_data *control_data;
     uint8_t control_count;
+    const qlcp_control_data *control_data;
 } qlcp_status_packet;
 
 typedef struct {
     qlcp_header header;
-    const qlcp_sensor_data *sensor_data;
     uint8_t sensor_count;
+    const qlcp_sensor_data *sensor_data;
 } qlcp_data_packet;
 
 typedef struct {
     qlcp_header header;
-    const uint8_t *config_data;
     uint16_t config_data_len;
+    const uint8_t *config_data;
 } qlcp_config_packet;
 
 // Payload tagged unions

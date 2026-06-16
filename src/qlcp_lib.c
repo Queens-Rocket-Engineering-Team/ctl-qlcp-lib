@@ -304,8 +304,7 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
     buffer[QLCP_HEADER_SIZE + 0] = status->ack_packet_type;
     buffer[QLCP_HEADER_SIZE + 1] = status->ack_sequence;
 
-    buffer[QLCP_HEADER_SIZE + 2] = status->device_status;
-    buffer[QLCP_HEADER_SIZE + 3] = status->control_count;
+    buffer[QLCP_HEADER_SIZE + 2] = status->control_count;
 
     size_t offset = QLCP_STATUS_PACKET_SIZE(0);
     for (size_t i = 0; i < status->control_count; i++) {
@@ -497,7 +496,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
                 return QLCP_NO_MEM;
             }
             // Check that there is enough memory in buffers
-            uint8_t control_count = buffer[QLCP_HEADER_SIZE + 3];
+            const uint8_t control_count = buffer[QLCP_HEADER_SIZE + 2];
             if (payload_buffers->control_data_len < control_count) {
                 return QLCP_NO_MEM;
             }
@@ -510,8 +509,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
             payload->payload_data.status.ack_packet_type = buffer[QLCP_HEADER_SIZE + 0];
             payload->payload_data.status.ack_sequence = buffer[QLCP_HEADER_SIZE + 1];
 
-            payload->payload_data.status.device_status = buffer[QLCP_HEADER_SIZE + 2];
-            payload->payload_data.status.control_count = buffer[QLCP_HEADER_SIZE + 3];
+            payload->payload_data.status.control_count = control_count;
 
             payload->payload_data.status.control_data = payload_buffers->control_data;
 
@@ -530,7 +528,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
                 return QLCP_NO_MEM;
             }
             // Check that there is enough memory in buffers
-            uint8_t sensor_count = buffer[QLCP_HEADER_SIZE + 0];
+            const uint8_t sensor_count = buffer[QLCP_HEADER_SIZE + 0];
             if (payload_buffers->sensor_data_len < sensor_count) {
                 return QLCP_NO_MEM;
             }
