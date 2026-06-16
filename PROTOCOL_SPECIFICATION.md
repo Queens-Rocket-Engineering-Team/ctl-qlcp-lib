@@ -143,7 +143,7 @@ Offset  Size  Type    Field        Description
 
 The interpretation of TIMESTAMP is defined in Section 3.4 Time Bases and Section 7.7 TIMESYNC.
 
-### TCP Framing
+### 5.1 TCP Framing
 
 To parse a TCP stream:
 
@@ -660,7 +660,7 @@ Key points:
 
 The CONFIG packet carries a JSON object describing the device's capabilities. The server uses this to register sensors and controls.
 
-### Schema
+### 12.1 Schema
 
 ```json
 {
@@ -719,7 +719,7 @@ The CONFIG packet carries a JSON object describing the device's capabilities. Th
 }
 ```
 
-### 12.1 Example (PANDA-V3)
+### 12.2 Example (PANDA-V3)
 
 ```json
 {
