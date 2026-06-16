@@ -7,11 +7,10 @@ target_link_libraries(test_qlcp PRIVATE
 
 add_test(NAME qlcp_unit_tests COMMAND test_qlcp)
 
-add_custom_target(RUN_UNIT_TESTS
+add_custom_target(run_unit_tests
     COMMAND $<TARGET_FILE:test_qlcp>
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS test_qlcp
     COMMENT "Running unit tests"
     USES_TERMINAL
 )
-
-add_dependencies(RUN_UNIT_TESTS test_qlcp)

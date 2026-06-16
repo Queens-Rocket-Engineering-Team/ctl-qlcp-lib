@@ -593,7 +593,7 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
 
             payload->payload_data.config.config_data_len = config_len;
             payload->payload_data.config.config_data = payload_buffers->config_data;
-            // config_data is not null terminated
+
             memcpy(payload_buffers->config_data, buffer + QLCP_CONFIG_PACKET_SIZE(0), config_len);
         }
         break;

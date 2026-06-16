@@ -594,7 +594,7 @@ On receiving GET_SINGLE, the device MUST take **one reading from every sensor** 
 
 ### 10.5 CONTROL
 
-On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current control states. The device MUST ensure that the control type sent in CONTROL matches the expected control type for that control id, as defined in its config.
+On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current control states. The device MUST ensure that the control type sent in CONTROL matches the expected control type for the control id, as defined in its config.
 
 ### 10.6 STATUS_REQUEST
 
