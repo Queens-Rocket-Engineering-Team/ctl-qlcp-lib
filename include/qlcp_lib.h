@@ -41,6 +41,7 @@ typedef enum {
 } qlcp_packet_type;
 
 typedef enum {
+    // Control type
     QLCP_CONTROL_BOOL = 0x00,
     QLCP_CONTROL_UINT32 = 0x01,
     QLCP_CONTROL_INT32 = 0x02,
@@ -48,7 +49,7 @@ typedef enum {
 } qlcp_control_type;
 
 typedef enum {
-    // Control state
+    // Control state, used for bool type controls
     QLCP_CS_CLOSED = 0x00,
     QLCP_CS_OPEN = 0x01,
     QLCP_CS_ERROR = 0xFF,
