@@ -203,11 +203,11 @@ These packets have no payload.
 
 ### 7.2 STATUS
 
-Length: Variable, 21 + 2*N bytes, where N is the number of controls.
+Length: Variable, 20 + 2*N bytes, where N is the number of controls.
 
 Direction: Device → Server
 
-Purpose: Reports the current device status and control states.
+Purpose: Reports the current device control states.
 STATUS is sent in response to CONTROL and STATUS_REQUEST packets.
 
 The STATUS packet represents the device state after the
@@ -224,8 +224,7 @@ Offset  Size  Type    Field            Description
 0-16    17    -       header           Standard header
 17      1     uint8   ack_packet_type  Type of packet being acknowledged
 18      1     uint8   ack_sequence     Sequence number of packet being acknowledged
-19      1     uint8   status           DeviceStatus enum value
-20      1     uint8   count            Number of valves/controls (N)
+19      1     uint8   count            Number of valves/controls (N)
 
 Repeated N times (2 bytes each):
 +0      1     uint8   control_id       Index in device's control array
@@ -483,7 +482,7 @@ Offset      Size      Type    Field       Description
 | CONTROL        | 19               | 1B cmd_id + 1B state |
 | ACK            | 19               | 1B type + 1B seq |
 | NACK           | 20               | 1B type + 1B seq + 1B error |
-| STATUS         | 21 + 2*N         | 1B type + 1B seq + 1B status + 1B count + N*(1B+1B) |
+| STATUS         | 20 + 2*N         | 1B type + 1B seq + 1B count + N*(1B+1B) |
 | DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
 | CONFIG         | 17 + packet_len  | json_data   |
 
@@ -491,18 +490,7 @@ Offset      Size      Type    Field       Description
 
 ## 9. Enum Values
 
-### 9.1 DeviceStatus
-
-```
-Value  Name
------  -----------
-0x00   INACTIVE
-0x01   ACTIVE
-0x02   ERROR
-0x03   CALIBRATING
-```
-
-### 9.2 ControlState
+### 9.1 ControlState
 
 ```
 Value  Name
@@ -512,7 +500,7 @@ Value  Name
 0xFF   ERROR
 ```
 
-### 9.3 Unit
+### 9.2 Unit
 
 ```
 Value  Name
@@ -536,7 +524,7 @@ Value  Name
 0xFF   UNITLESS
 ```
 
-### 9.4 ErrorCode
+### 9.3 ErrorCode
 
 ```
 Value  Name
@@ -593,11 +581,11 @@ On receiving GET_SINGLE, the device MUST take **one reading from every sensor** 
 
 ### 10.5 CONTROL
 
-On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current DeviceStatus and control states.
+On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current control states.
 
 ### 10.6 STATUS_REQUEST
 
-On receiving STATUS_REQUEST, the device MUST send a STATUS packet with its current DeviceStatus and control states.
+On receiving STATUS_REQUEST, the device MUST send a STATUS packet with its current control states.
 
 ### 10.7 Unknown Packet Types
 
