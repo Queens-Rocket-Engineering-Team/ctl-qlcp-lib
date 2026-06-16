@@ -399,7 +399,6 @@ void test_status_encode_decode(void) {
         },
         .ack_packet_type = QLCP_PT_STATUS_REQUEST,
         .ack_sequence = 200,
-        .device_status = QLCP_DS_ACTIVE,
         .control_count = sizeof(control_data)/sizeof(control_data[0]),
         .control_data = control_data,
     };
@@ -411,7 +410,6 @@ void test_status_encode_decode(void) {
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(status.ack_packet_type, g_server_payload.payload_data.status.ack_packet_type);
         TEST_ASSERT_EQUAL_UINT8(status.ack_sequence, g_server_payload.payload_data.status.ack_sequence);
-        TEST_ASSERT_EQUAL_UINT8(status.device_status, g_server_payload.payload_data.status.device_status);
         TEST_ASSERT_EQUAL_UINT8(status.control_count, g_server_payload.payload_data.status.control_count);
         for (size_t i = 0; i < status.control_count; i++) {
             TEST_ASSERT_EQUAL_UINT8(control_data[i].control_id, g_server_payload.payload_data.status.control_data[i].control_id);
@@ -483,7 +481,7 @@ void test_malicious_packets(void) {
     uint16_t status_len = QLCP_STATUS_PACKET_SIZE(250);
     mal_buffer[7] = (uint8_t)(status_len >> 8);
     mal_buffer[8] = (uint8_t)(status_len);
-    mal_buffer[QLCP_HEADER_SIZE + 3] = 250; // control_count byte at QLCP_HEADER_SIZE + 3
+    mal_buffer[QLCP_HEADER_SIZE + 2] = 250; // control_count byte at QLCP_HEADER_SIZE + 3
     
     TEST_ASSERT_EQUAL_MESSAGE(
         QLCP_NO_MEM, 
@@ -492,7 +490,7 @@ void test_malicious_packets(void) {
     );
 
     // STATUS packet claims 5 controls, but length in header claims smaller
-    mal_buffer[QLCP_HEADER_SIZE + 3] = 5;
+    mal_buffer[QLCP_HEADER_SIZE + 2] = 5;
     uint16_t status_mismatched_len = QLCP_STATUS_PACKET_SIZE(2);
     mal_buffer[7] = (uint8_t)(status_mismatched_len >> 8);
     mal_buffer[8] = (uint8_t)(status_mismatched_len);
