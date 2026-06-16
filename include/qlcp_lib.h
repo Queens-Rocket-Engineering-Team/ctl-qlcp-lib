@@ -15,6 +15,7 @@ typedef enum {
     QLCP_LEN_MISMATCH,
     QLCP_VERSION_MISMATCH,
     QLCP_NO_MAGIC_NUM,
+    QLCP_INVALID_HEADER,
     QLCP_INVALID_PACKET_TYPE,
 } qlcp_lib_ret;
 
@@ -38,6 +39,13 @@ typedef enum {
     QLCP_PT_ACK = 0x13,
     QLCP_PT_NACK = 0x14,
 } qlcp_packet_type;
+
+typedef enum {
+    QLCP_CONTROL_BOOL = 0x00,
+    QLCP_CONTROL_UINT32 = 0x01,
+    QLCP_CONTROL_INT32 = 0x02,
+    QLCP_CONTROL_FLOAT32 = 0x03,
+} qlcp_control_type;
 
 typedef enum {
     // Control state
@@ -83,15 +91,14 @@ typedef enum {
 
 #define QLCP_HEADER_SIZE 17
 
-#define QLCP_CONTROL_STATUS_DATA_SIZE 2
+#define QLCP_CONTROL_DATA_SIZE 6
 #define QLCP_SENSOR_DATA_SIZE 6
 
 #define QLCP_STREAM_START_DATA_SIZE 2
-#define QLCP_CONTROL_DATA_SIZE 2
 #define QLCP_TIMESYNC_RESP_DATA_SIZE 18
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (QLCP_CONTROL_STATUS_DATA_SIZE * (control_count)))
+#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (QLCP_CONTROL_DATA_SIZE * (control_count)))
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * (sensor_count)))
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
@@ -115,13 +122,19 @@ typedef struct {
 
 // Struct for variable-length control data data in status packet
 typedef struct {
-    uint8_t control_id;
-    uint8_t control_state;
+    uint8_t id;
+    uint8_t type;
+    union {
+        uint8_t control_bool;
+        uint32_t control_uint32;
+        int32_t control_int32;
+        float control_float32;
+    } state;
 } qlcp_control_data;
 
 // Struct for variable-length sensor data in data packet
 typedef struct {
-    uint8_t sensor_id;
+    uint8_t id;
     uint8_t unit;
     float value;
 } qlcp_sensor_data;
@@ -140,8 +153,7 @@ typedef struct {
 
 typedef struct {
     qlcp_header header;
-    uint8_t control_id;
-    uint8_t control_state;
+    qlcp_control_data control_data;
 } qlcp_control_packet;
 
 typedef struct {

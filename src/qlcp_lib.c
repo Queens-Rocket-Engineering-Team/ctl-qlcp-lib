@@ -68,6 +68,9 @@ static qlcp_lib_ret s_unpack_header(qlcp_header_internal *header_data, const uin
 
     header_data->packet_length = ((uint16_t)buffer[7] << 8) |
                                  ((uint16_t)buffer[8]);
+    if (header_data->packet_length < QLCP_HEADER_SIZE) {
+        return QLCP_INVALID_HEADER;
+    }
 
     header_data->timestamp_us = ((uint64_t)buffer[9] << 56) |
                                 ((uint64_t)buffer[10] << 48) |
@@ -229,8 +232,13 @@ qlcp_lib_ret qlcp_encode_control(uint8_t buffer[], size_t *buffer_len, const qlc
         return ret;
     }
 
-    buffer[QLCP_HEADER_SIZE + 0] = control->control_id;
-    buffer[QLCP_HEADER_SIZE + 1] = control->control_state;
+    buffer[QLCP_HEADER_SIZE + 0] = control->control_data.id;
+    buffer[QLCP_HEADER_SIZE + 1] = control->control_data.type;
+    // Treating as a uint32 as it covers all possible sizes in the union and cooperates with bitshifts
+    buffer[QLCP_HEADER_SIZE + 2] = (uint8_t)(control->control_data.state.control_uint32 >> 24);
+    buffer[QLCP_HEADER_SIZE + 3] = (uint8_t)(control->control_data.state.control_uint32 >> 16);
+    buffer[QLCP_HEADER_SIZE + 4] = (uint8_t)(control->control_data.state.control_uint32 >> 8);
+    buffer[QLCP_HEADER_SIZE + 5] = (uint8_t)(control->control_data.state.control_uint32);
 
     return QLCP_OK;
 }
@@ -308,9 +316,15 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
 
     size_t offset = QLCP_STATUS_PACKET_SIZE(0);
     for (size_t i = 0; i < status->control_count; i++) {
-        buffer[offset + 0] = status->control_data[i].control_id;
-        buffer[offset + 1] = status->control_data[i].control_state;
-        offset += QLCP_CONTROL_STATUS_DATA_SIZE;
+        buffer[offset + 0] = status->control_data[i].id;
+        buffer[offset + 1] = status->control_data[i].type;
+
+        buffer[offset + 2] = (uint8_t)(status->control_data[i].state.control_uint32 >> 24);
+        buffer[offset + 3] = (uint8_t)(status->control_data[i].state.control_uint32 >> 16);
+        buffer[offset + 4] = (uint8_t)(status->control_data[i].state.control_uint32 >> 8);
+        buffer[offset + 5] = (uint8_t)(status->control_data[i].state.control_uint32);
+
+        offset += QLCP_CONTROL_DATA_SIZE;
     }
     return QLCP_OK;
 }
@@ -340,7 +354,7 @@ qlcp_lib_ret qlcp_encode_data(uint8_t buffer[], size_t *buffer_len, const qlcp_d
 
     size_t offset = QLCP_DATA_PACKET_SIZE(0);
     for (size_t i = 0; i < data->sensor_count; i++) {
-        buffer[offset + 0] = data->sensor_data[i].sensor_id;
+        buffer[offset + 0] = data->sensor_data[i].id;
         buffer[offset + 1] = data->sensor_data[i].unit;
         // Copy the exact bytes from a float
         uint32_t value_bytes;
@@ -515,10 +529,18 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
 
             size_t offset = QLCP_STATUS_PACKET_SIZE(0);
             for (size_t i = 0; i < control_count; i++) {
-                payload_buffers->control_data[i].control_id = buffer[offset + 0];
-                payload_buffers->control_data[i].control_state = buffer[offset + 1];
+                if (offset + QLCP_CONTROL_DATA_SIZE > buffer_len) {
+                    return QLCP_LEN_MISMATCH;
+                }
+                payload_buffers->control_data[i].id = buffer[offset + 0];
+                payload_buffers->control_data[i].type = buffer[offset + 1];
 
-                offset += QLCP_CONTROL_STATUS_DATA_SIZE;
+                payload_buffers->control_data[i].state.control_uint32 = ((uint32_t)buffer[offset + 2] << 24) |
+                                                                        ((uint32_t)buffer[offset + 3] << 16) |
+                                                                        ((uint32_t)buffer[offset + 4] << 8) |
+                                                                        ((uint32_t)buffer[offset + 5]);
+
+                offset += QLCP_CONTROL_DATA_SIZE;
             }
         }
         break;
@@ -544,13 +566,16 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
 
             size_t offset = QLCP_DATA_PACKET_SIZE(0);
             for (size_t i = 0; i < sensor_count; i++) {
-                payload_buffers->sensor_data[i].sensor_id = buffer[offset + 0];
+                if (offset + QLCP_SENSOR_DATA_SIZE > buffer_len) {
+                    return QLCP_LEN_MISMATCH;
+                }
+                payload_buffers->sensor_data[i].id = buffer[offset + 0];
                 payload_buffers->sensor_data[i].unit = buffer[offset + 1];
                 // Bytes to float
-                uint32_t value_bytes = ((uint32_t)buffer[offset + 2] << 24) |
-                                       ((uint32_t)buffer[offset + 3] << 16) |
-                                       ((uint32_t)buffer[offset + 4] << 8) |
-                                       ((uint32_t)buffer[offset + 5]);
+                const uint32_t value_bytes = ((uint32_t)buffer[offset + 2] << 24) |
+                                             ((uint32_t)buffer[offset + 3] << 16) |
+                                             ((uint32_t)buffer[offset + 4] << 8) |
+                                             ((uint32_t)buffer[offset + 5]);
                 memcpy(&payload_buffers->sensor_data[i].value, &value_bytes, sizeof(uint32_t));
 
                 offset += QLCP_SENSOR_DATA_SIZE;
@@ -559,6 +584,9 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
         break;
     case QLCP_PT_CONFIG:
         {
+            if (header_data.packet_length < QLCP_CONFIG_PACKET_SIZE(0)) {
+                return QLCP_LEN_MISMATCH;
+            }
             const uint16_t config_len = header_data.packet_length - QLCP_CONFIG_PACKET_SIZE(0);
             // Check that there is enough memory in buffers
             if (payload_buffers->config_data_len < config_len) {
@@ -653,8 +681,13 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
         payload->payload_data.control.header.sequence = header_data.sequence;
         payload->payload_data.control.header.timestamp_us = header_data.timestamp_us;
 
-        payload->payload_data.control.control_id = buffer[QLCP_HEADER_SIZE + 0];
-        payload->payload_data.control.control_state = buffer[QLCP_HEADER_SIZE + 1];
+        payload->payload_data.control.control_data.id = buffer[QLCP_HEADER_SIZE + 0];
+        payload->payload_data.control.control_data.type = buffer[QLCP_HEADER_SIZE + 1];
+
+        payload->payload_data.control.control_data.state.control_uint32 = ((uint32_t)buffer[QLCP_HEADER_SIZE + 2] << 24) |
+                                                                          ((uint32_t)buffer[QLCP_HEADER_SIZE + 3] << 16) |
+                                                                          ((uint32_t)buffer[QLCP_HEADER_SIZE + 4] << 8) |
+                                                                          ((uint32_t)buffer[QLCP_HEADER_SIZE + 5]);
         break;
     case QLCP_PT_TIMESYNC_RESP:
         if (header_data.packet_length != QLCP_TIMESYNC_RESP_PACKET_SIZE) {

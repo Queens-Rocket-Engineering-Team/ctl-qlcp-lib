@@ -203,7 +203,7 @@ These packets have no payload.
 
 ### 7.2 STATUS
 
-Length: Variable, 20 + 2*N bytes, where N is the number of controls.
+Length: Variable, 20 + 6*N bytes, where N is the number of controls.
 
 Direction: Device → Server
 
@@ -226,9 +226,10 @@ Offset  Size  Type    Field            Description
 18      1     uint8   ack_sequence     Sequence number of packet being acknowledged
 19      1     uint8   count            Number of valves/controls (N)
 
-Repeated N times (2 bytes each):
-+0      1     uint8   control_id       Index in device's control array
-+1      1     uint8   control_state    ControlState enum value
+Repeated N times (6 bytes each):
++0      1     uint8    control_id       Index in device's control array
++1      1     uint8    control_type     Control's type from control type enum
++2      4     variable control_state    Control's desired state
 ```
 
 ---
@@ -256,7 +257,7 @@ Offset  Size  Type    Field         Description
 
 ### 7.4 CONTROL 
 
-Length: 19 bytes
+Length: 23 bytes
 
 Direction: Server → Device
 
@@ -265,11 +266,12 @@ Purpose: Command the device to set the state of a valve/control. Upon receipt, t
 The `control_id` field specifies the index of the valve/control as specified in Section 3.5 ID Mapping.
 
 ```
-Offset  Size  Type    Field          Description
-------  ----  ------  -------------  -------------------------
-0-16    17    -       header         Standard header
-17      1     uint8   control_id     Index in device's control array
-18      1     uint8   control_state  ControlState enum value
+Offset  Size  Type    Field           Description
+------  ----  ------  -------------   -------------------------
+0-16    17    -       header          Standard header
+17      1     uint8    control_id     Index in device's control array
+18      1     uint8    control_type   Control's type from control type enum
+19      4     variable control_state  Control's desired state
 ```
 
 ---
@@ -479,10 +481,10 @@ Offset      Size      Type    Field       Description
 | TIMESYNC_RESP  | 35               | 1B type + 1B seq + 8B T1_echo + 8B T2   |
 | STATUS_REQUEST | 17               | (none)               |
 | STREAM_START   | 19               | 2B frequency_hz      |
-| CONTROL        | 19               | 1B cmd_id + 1B state |
+| CONTROL        | 23               | 1B cmd_id + 1B cmd_type + 4B state |
 | ACK            | 19               | 1B type + 1B seq |
 | NACK           | 20               | 1B type + 1B seq + 1B error |
-| STATUS         | 20 + 2*N         | 1B type + 1B seq + 1B count + N*(1B+1B) |
+| STATUS         | 20 + 6*N         | 1B type + 1B seq + 1B count + N*(1B+1B+4B) |
 | DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
 | CONFIG         | 17 + packet_len  | json_data   |
 
@@ -490,7 +492,18 @@ Offset      Size      Type    Field       Description
 
 ## 9. Enum Values
 
-### 9.1 ControlState
+### 9.1 ControlType
+
+```
+Value  Name
+-----  ------
+0x00   BOOL
+0x01   UINT32
+0x02   INT32
+0x03   FLOAT32
+```
+
+### 9.1 ControlState (For bool type controls)
 
 ```
 Value  Name
@@ -581,7 +594,7 @@ On receiving GET_SINGLE, the device MUST take **one reading from every sensor** 
 
 ### 10.5 CONTROL
 
-On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current control states.
+On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current control states. The device MUST ensure that the control type sent in CONTROL matches the expected control type for that control id, as defined in its config.
 
 ### 10.6 STATUS_REQUEST
 

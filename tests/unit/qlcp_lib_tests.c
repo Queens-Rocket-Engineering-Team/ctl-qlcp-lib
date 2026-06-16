@@ -232,8 +232,13 @@ void test_control_encode_decode(void) {
             .sequence = sequence,
             .timestamp_us = timestamp_us
         },
-        .control_id = 45,
-        .control_state = QLCP_CS_CLOSED,
+        .control_data = {
+            .id = 45,
+            .type = QLCP_CONTROL_BOOL,
+            .state = {
+                .control_bool = QLCP_CS_CLOSED,
+            },
+        },
     };
 
     size_t buffer_len = sizeof(g_buffer);
@@ -241,8 +246,9 @@ void test_control_encode_decode(void) {
     TEST_ASSERT_EQUAL_INT(test_case.expected_encode_ret, encode_ret);
 
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
-        TEST_ASSERT_EQUAL_UINT8(control.control_id, g_client_payload.payload_data.control.control_id);
-        TEST_ASSERT_EQUAL_UINT8(control.control_state, g_client_payload.payload_data.control.control_state);
+        TEST_ASSERT_EQUAL_UINT8(control.control_data.id, g_client_payload.payload_data.control.control_data.id);
+        TEST_ASSERT_EQUAL_UINT8(control.control_data.type, g_client_payload.payload_data.control.control_data.type);
+        TEST_ASSERT_EQUAL_UINT8(control.control_data.state.control_uint32, g_client_payload.payload_data.control.control_data.state.control_uint32);
     }
 }
 
@@ -333,12 +339,12 @@ void test_config_encode_decode(void) {
 void test_data_encode_decode(void) {
     const qlcp_sensor_data sensor_data[] = {
         {
-            .sensor_id = 0,
+            .id = 0,
             .unit = QLCP_UNIT_HERTZ,
             .value = __FLT_MAX__
         },
         {
-            .sensor_id = 1,
+            .id = 1,
             .unit = QLCP_UNIT_AMPS,
             .value = __FLT_MIN__
         },
@@ -376,12 +382,18 @@ void test_data_encode_decode(void) {
 void test_status_encode_decode(void) {
     const qlcp_control_data control_data[] = {
         {
-            .control_id = 0,
-            .control_state = QLCP_CS_CLOSED
+            .id = 0,
+            .type = QLCP_CONTROL_BOOL,
+            .state = {
+                .control_bool = QLCP_CS_CLOSED,
+            },
         },
         {
-            .control_id = 1,
-            .control_state = QLCP_CS_OPEN
+            .id = 1,
+            .type = QLCP_CONTROL_INT32,
+            .state = {
+                .control_int32 = 12345,
+            },
         },
     };
 
@@ -412,8 +424,8 @@ void test_status_encode_decode(void) {
         TEST_ASSERT_EQUAL_UINT8(status.ack_sequence, g_server_payload.payload_data.status.ack_sequence);
         TEST_ASSERT_EQUAL_UINT8(status.control_count, g_server_payload.payload_data.status.control_count);
         for (size_t i = 0; i < status.control_count; i++) {
-            TEST_ASSERT_EQUAL_UINT8(control_data[i].control_id, g_server_payload.payload_data.status.control_data[i].control_id);
-            TEST_ASSERT_EQUAL_FLOAT(control_data[i].control_state, g_server_payload.payload_data.status.control_data[i].control_state);
+            TEST_ASSERT_EQUAL_UINT8(control_data[i].id, g_server_payload.payload_data.status.control_data[i].id);
+            TEST_ASSERT_EQUAL_FLOAT(control_data[i].state.control_bool, g_server_payload.payload_data.status.control_data[i].state.control_bool);
         }
     }
 }
