@@ -1,0 +1,3 @@
+magic_num="QLCP"
+
+protocol_ver="\x03"
