@@ -1,12 +1,134 @@
 # QRET Launch Control Protocol - Wire Format Specification
 
-This document is the authoritative wire-format reference for the QRET Propulsion binary protocol. All values are big-endian (network byte order). All sizes are in bytes.
+## 1. Introduction 
+
+This document is the authoritative wire-format reference for the QRET Launch Control binary protocol. All devices must implement this protocol to communicate with the Launch Control Server.
 
 ---
 
-## Packet Header (17 bytes)
+## 2. Terminology
 
-Every packet begins with this header. The LENGTH field enables trivial TCP framing.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+---
+
+## 3. Protocol Conventions
+
+### 3.1 Size Units
+
+All sizes specified in this document are in bytes.
+
+### 3.2 Byte Order
+
+All multi-byte values SHALL be represented in big-endian (network byte order).
+
+### 3.3 Sequence Numbers
+
+Each endpoint maintains an independent wrapping 8-bit sequence counter (0-255).
+
+The sequence counter SHALL increment after every packet transmitted.
+
+When a packet acts as a response to a previous request, the response SHALL include the sequence number of the original packet in its response correlation field.
+
+Sequence numbers are used for request/response matching and packet tracking. They do not imply delivery guarantees.
+
+### 3.4 Time Bases
+
+QLCP uses three related time representations.
+
+#### 3.4.1 Device Time
+
+Device Time is the local monotonic clock maintained by the device.
+
+- Units: microseconds
+- Epoch: device boot
+- Not synchronized between devices
+
+#### 3.4.2 Server Time
+
+Server Time is the monotonic clock maintained by the server.
+
+- Units: microseconds
+- Epoch: server startup
+- Used as the canonical system reference time
+
+#### 3.4.3 Protocol Timestamp
+
+The TIMESTAMP field contained in packet headers. 
+
+Before the initial time synchronization, the protocol timestamp is equivalent to Device Time.
+
+After a successful time synchronization, the protocol timestamp represents the device's estimate of Server Time.
+
+All device-originated timestamps SHOULD be interpreted as Server Time after a successful time synchronization has completed.
+
+### 3.5 ID Mapping
+
+QLCP uses compact numeric IDs on the wire. These IDs are derived from the CONFIG packet.
+
+Sensor IDs and control IDs use separate zero-based ID spaces.
+
+A `control_id` is the zero-based ordinal of a control entry in the `controls` object, using the member order as serialized in the CONFIG JSON.
+
+A `sensor_id` is the zero-based ordinal of a sensor entry found by traversing `sensor_info`, using the member order as serialized in the CONFIG JSON. Each category is traversed sequentially in the order defined by the CONFIG JSON.
+
+Although JSON objects are formally unordered, QLCP assigns semantic meaning to member order when deriving `sensor_id` and `control_id` values.
+
+Implementations MUST preserve object member order exactly as transmitted.
+
+Sensor and control IDs are session-local. They are derived from the CONFIG packet received during device registration and MUST NOT be assumed stable across different CONFIG versions.
+
+---
+
+## 4. Transport
+
+QLCP uses multiple network transport protocols depending on the traffic type. 
+
+### 4.1 Discovery Transport
+
+DISCOVERY packets are transmitted using UDP multicast to:
+
+`239.100.0.1:10000`
+
+Devices that are not currently connected to the server MUST listen for DISCOVERY packets and use them to determine the server address.
+
+### 4.2 Control Transport
+
+Connection is established using TCP on server port `50000`.
+
+The following packet types are transmitted over a persistent TCP connection:
+
+- ESTOP
+- CONFIG
+- HEARTBEAT
+- TIMESYNC_REQ
+- TIMESYNC_RESP
+- CONTROL
+- STATUS_REQUEST
+- STREAM_START
+- STREAM_STOP
+- GET_SINGLE
+- STATUS
+- ACK
+- NACK
+
+TCP is used because these messages require reliable delivery, ordering, and request/response semantics.
+
+### 4.3 Telemetry Transport
+
+DATA packets are sent as UDP datagrams to server port `50001`.
+
+DATA packets are transported over UDP.
+
+UDP is used to eliminate latency and avoid head-of-line blocking caused by TCP retransmission. Occasional packet loss is acceptable for real-time telemetry streams.
+
+Each DATA packet is self-contained and identified by its timestamp.
+
+---
+
+## 5. Packet Header
+
+Every packet begins with the same 17-byte header. This includes basic metadata about each packet and is followed by the applicable packet-specific payload.
 
 ```
 Offset  Size  Type    Field        Description
@@ -16,10 +138,10 @@ Offset  Size  Type    Field        Description
 5       1     uint8   PACKET_TYPE  Packet type enum (see below)
 6       1     uint8   SEQUENCE     Wrapping counter 0-255 for req/resp matching
 7       2     uint16  LENGTH       Total packet size including this header
-9       8     uint64  TIMESTAMP    Microseconds since boot (device) or session start (server)
+9       8     uint64  TIMESTAMP    Protocol timestamp; see Section 3.4 Time Bases
 ```
 
-The TIMESTAMP field on device-originated packets must be the device's microseconds since boot added to the current timestamp offset. This is explained in-depth in the TIMESYNC Packet section.
+The interpretation of TIMESTAMP is defined in Section 3.4 Time Bases and Section 7.7 TIMESYNC.
 
 ### TCP Framing
 
@@ -33,7 +155,7 @@ To parse a TCP stream:
 
 ---
 
-## Packet Type Enum
+## 6. Packet Types
 
 ```
 Value  Name            Direction        Description
@@ -50,7 +172,7 @@ Value  Name            Direction        Description
 
 0x09   TIMESYNC_REQ    Device -> Server Time synchronization request
 0x10   CONFIG          Device -> Server Device configuration (JSON)
-0x11   DATA            Device -> Server Batched sensor data
+0x11   DATA            Device -> Server Sensor readings from a single acquisition interval
 0x12   STATUS          Device -> Server Device status response
 
 0x13   ACK             Any -> Any Positive acknowledgment
@@ -59,11 +181,13 @@ Value  Name            Direction        Description
 
 ---
 
-## Packet Formats
+## 7. Packet Definitions
 
-### Header-Only Packets (17 bytes)
+### 7.1 Header-Only Packets
 
-These packets have no payload.
+Length: 17 bytes
+
+These packets have no payload. 
 
 | Packet Type    | Value |
 |----------------|-------|
@@ -75,19 +199,31 @@ These packets have no payload.
 | GET_SINGLE     | 0x07  |
 | TIMESYNC_REQ   | 0x09  |
 
-
 ---
 
-### STATUS (21 + 2*N bytes, variable)
+### 7.2 STATUS
 
-Device status response and valve/control states. This packet is sent as a response to CONTROL and STATUS_REQUEST, and should acknowledge it in its ack fields.
+Length: Variable, 21 + 2*N bytes, where N is the number of controls.
+
+Direction: Device → Server
+
+Purpose: Reports the current device status and control states.
+STATUS is sent in response to CONTROL and STATUS_REQUEST packets.
+
+The STATUS packet represents the device state after the
+request has been processed.
+
+The `count` field specifies the number of control states
+contained in the packet.
+
+Each `control_id` corresponds to the index of the relevant control as defined in Section 3.5 ID Mapping.
 
 ```
 Offset  Size  Type    Field            Description
 ------  ----  ------  ------           -------------------------
 0-16    17    -       header           Standard header
 17      1     uint8   ack_packet_type  Type of packet being acknowledged
-18      1     uint8   ack_sequence     Sequence number of package being acknowledged
+18      1     uint8   ack_sequence     Sequence number of packet being acknowledged
 19      1     uint8   status           DeviceStatus enum value
 20      1     uint8   count            Number of valves/controls (N)
 
@@ -98,22 +234,36 @@ Repeated N times (2 bytes each):
 
 ---
 
-### STREAM_START (19 bytes)
+### 7.3 STREAM_START
 
-Start streaming at specified frequency.
+Length: 19 bytes
+
+Direction: Server → Device
+
+Purpose: Command the device to start streaming DATA packets at a specified frequency. Receiving STREAM_START while already streaming SHALL update the active stream frequency to the newly requested value.
+
+If the request frequency exceeds the device's capabilities, the device SHOULD stream at the highest supported frequency that does not exceed the requested frequency.
+
+The `frequency_hz` field specifies the requested DATA transmission frequency in Hertz.
 
 ```
 Offset  Size  Type    Field         Description
 ------  ----  ------  ------------  -------------------------
 0-16    17    -       header        Standard header
-17      2     uint16  frequency_hz  Samples per second (1-65535)
+17      2     uint16  frequency_hz  DATA transmission frequency (1-65535)
 ```
 
 ---
 
-### CONTROL (19 bytes)
+### 7.4 CONTROL 
 
-Control command for valves/actuators.
+Length: 19 bytes
+
+Direction: Server → Device
+
+Purpose: Command the device to set the state of a valve/control. Upon receipt, the device MUST set the state of the specified valve/control to the value specified in the `control_state` field.
+
+The `control_id` field specifies the index of the valve/control as specified in Section 3.5 ID Mapping.
 
 ```
 Offset  Size  Type    Field          Description
@@ -125,9 +275,17 @@ Offset  Size  Type    Field          Description
 
 ---
 
-### ACK (19 bytes)
+### 7.5 ACK
 
-Positive acknowledgment.
+Length: 19 bytes
+
+Direction: Any -> Any
+
+Purpose: Indicate successful processing of a request.
+
+An ACK packet confirms that the referenced packet was successfully processed.
+
+The `ack_packet_type` and `ack_sequence` fields identify the packet being acknowledged.
 
 ```
 Offset  Size  Type    Field           Description
@@ -139,9 +297,19 @@ Offset  Size  Type    Field           Description
 
 ---
 
-### NACK (20 bytes)
+### 7.6 NACK 
 
-Negative acknowledgment with error code.
+Length: 20 bytes
+
+Direction: Any -> Any
+
+Purpose: Indicate unsuccessful processing of a request.
+
+A NACK packet confirms that the referenced packet could not be successfully processed.
+
+The `nack_packet_type` and `nack_sequence` fields identify the rejected packet.
+
+The `error_code` field specifies the reason for rejection.
 
 ```
 Offset  Size  Type    Field            Description
@@ -154,17 +322,49 @@ Offset  Size  Type    Field            Description
 
 ---
 
-### TIMESYNC
+### 7.7 TIMESYNC
 
-NTP-style clock synchronization, device-initiated. Uses a two-packet round-trip to estimate one-way network latency and compute a corrected clock offset. The server participates statelessly — it echoes timestamps back and does no math.
+Purpose: Synchronize the device clock to the server clock using a four-timestamp round-trip exchange. The protocol estimates one-way network latency and computes a clock offset that allows device timestamps to be expressed in the server's time base.
 
-#### TIMESYNC_REQ (17 bytes, header-only)
+The server participates statelessly. It records timestamps and echoes values from the request but does not compute the clock offset.
 
-Device stamps T1 = device_time_us() in the header TIMESTAMP field and sends.
+#### 7.7.1 TIMESYNC_REQ 
 
-#### TIMESYNC_RESP (35 bytes)
+Length: 17 bytes
 
-Server stamps T2 = server_time_us() on receipt, then stamps T3 = server_time_us() in the header TIMESTAMP field immediately before sending. Payload carries T1 and T2 so the device has all four timestamps on receipt. TIMESYNC_RESP should acnowledge the TIMESYNC_REQ recieved in its ack fields.
+Direction: Device -> Server
+
+Purpose: Initiate a clock synchronization exchange.
+
+The device SHALL populate the packet header TIMESTAMP field with:
+```
+T1 = device_time_us()
+```
+
+The packet contains no payload.
+
+#### 7.7.2 TIMESYNC_RESP
+
+Length: 35 bytes
+
+Direction: Server -> Device
+
+Purpose: Complete a clock synchronization exchange.
+
+Upon receiving a TIMESYNC_REQ, the server SHALL:
+1. Record the receipt time:
+```
+T2 = server_time_us()
+```
+
+2. Immediately before transmitting the response, record:
+```
+T3 = server_time_us()
+```
+
+3. Populate the response payload with T1 and T2.
+
+The response MUST reference the corresponding TIMESYNC_REQ using its response correlation fields.
 
 ```
 Offset  Size  Type    Field           Description
@@ -173,47 +373,68 @@ Offset  Size  Type    Field           Description
 17      1     uint8   ack_packet_type Type of packet being acknowledged
 18      1     uint8   ack_sequence    Sequence of packet being acknowledged
 19      8     uint64  t1_echo_us      Echo of T1 from request header
-27      8     uint64  t2_us           Server receipt time (monotonic us)
+27      8     uint64  t2_us           Server receipt time (monotonic us, T2)
 ```
 
-#### Device behavior
+#### 7.7.3 Device behavior
 
-On receiving TIMESYNC_RESP, the device must:
+On receiving TIMESYNC_RESP, the device SHALL:
 
-1. Sample T4 = device_time_us() immediately on receipt.
-2. Recover all four timestamps:
-   T1 = resp.payload.t1_echo_us      (device send time, echoed from request header)
-   T2 = resp.payload.t2_us           (server receipt time)
-   T3 = resp.header.timestamp_us     (server send time)
-   T4 = device_time_us()             (sampled in step 1)
+1. Immediately sample:
+```
+T4 = device_time_us()
+```
+2. Recover the four timestamps:
+```
+T1 = resp.payload.t1_echo_us      (device send time, echoed from request header)
+T2 = resp.payload.t2_us           (server receipt time)
+T3 = resp.header.timestamp_us     (server send time)
+T4 = device_time_us()             (sampled in step 1)
+```
 3. Compute the clock offset:
-   ts_offset = ((T1 - T2) + (T4 - T3)) / 2
-   A positive ts_offset means the device clock is running ahead of the server.
-4. Store ts_offset.
-5. For *all subsequent outgoing packets*, set the header timestamp to:
-   header.timestamp_us = device_time_us() - ts_offset
+```
+ts_offset = ((T1 - T2) + (T4 - T3)) / 2
+```
+4. Store the computed offset.
 
-After this, every packet the device sends has its timestamp locked to the server's time scale. The server can use device header timestamps directly — no server-side conversion is needed.
+The computed offset represents:
+```
+ts_offset = device_time_us - server_time_us
+```
+A positive offset indicates that the device clock is ahead of the server clock.
 
-#### Initiation policy
+For all subsequent outgoing packets, the device SHALL populate the header TIMESTAMP field with:
+```
+header.timestamp_us = device_time_us() - ts_offset
+```
 
-The device initiates a sync cycle immediately after receiving the ACK for its CONFIG packet, and then every 1 minute thereafter.
+After synchronization, device-originated packet timestamps SHALL be expressed in the server's time base.
 
-#### Why this matters
+#### 7.7.4 Synchronization Schedule
 
-By locking device timestamps to the server's clock, the server gets inter-sample timing derived from the device's crystal oscillator rather than from network receive times. This eliminates jitter from TCP buffering, OS scheduling, and network latency. The device's oscillator provides consistent, microsecond-resolution intervals between readings.
+The device SHALL initiate a synchronization cycle:
+1. Immediately after receiving the ACK for its CONFIG packet.
+2. At least once every 60 seconds during normal operation.
 
-One-way latency correction is essential: a naïve single-packet sync (server stamps and sends; device computes offset on receipt) leaves a systematic error equal to the one-way network delay. On a LAN this is typically under 1 ms but non-zero and variable — larger than the drift the resync is trying to correct.
+#### 7.7.5 Notes / Rationale
 
-#### Why periodic resync
+Synchronizing device timestamps to the server clock allows telemetry timing to be derived from the device oscillator rather than network receive times. This reduces timing jitter caused by TCP buffering, operating-system scheduling, and network latency.
 
 ESP32 crystal oscillators drift approximately 10 ppm. Over 1 minute this is ~0.6 ms; over 1 hour it is ~36 ms. At high sample rates (hundreds of Hz), where one sample period is 1–10 ms, this drift becomes significant during long test runs. The 1-minute maintenance interval keeps accumulated drift under ~0.6 ms between corrections.
 
 ---
 
-### DATA (18 + 6*N bytes, variable)
+### 7.8 DATA
 
-Batched sensor data. LENGTH = 18 + 6*N, where N is the number of readings.
+Length: 18 + 6*N bytes, where N is the number of sensors.
+
+Direction: Device -> Server
+
+Purpose: Report sensor readings from a single acquisition interval. Contains up to one reading for each sensor on the device.
+
+The packet header TIMESTAMP field represents the acquisition timestamp of the readings contained in the packet.
+
+Each `sensor_id` corresponds to the index of the relevant sensor as specified in Section 3.5 ID Mapping.
 
 ```
 Offset  Size  Type    Field     Description
@@ -227,17 +448,15 @@ Repeated N times (6 bytes each):
 +2      4     float32 value      IEEE 754 single-precision float
 ```
 
-A single reading uses N=1 (24 bytes total). Example with 3 sensors:
-
-```
-17 (header) + 1 (count) + 3 * 6 (readings) = 36 bytes
-```
-
 ---
 
-### CONFIG (17 + packet_len bytes, variable)
+### 7.9 CONFIG
 
-Device configuration sent on connection. LENGTH = 17 + packet_len.
+Length: 17 + packet_len bytes
+
+Direction: Device -> Server
+
+Purpose: Device configuration sent on connection. Defines the device's control and sensor configuration.
 
 ```
 Offset      Size      Type    Field       Description
@@ -248,7 +467,7 @@ Offset      Size      Type    Field       Description
 
 ---
 
-## Packet Size Summary
+## 8. Packet Size Summary
 
 | Packet         | Total Size       | Payload after header |
 |----------------|------------------|----------------------|
@@ -270,9 +489,9 @@ Offset      Size      Type    Field       Description
 
 ---
 
-## Enum Values
+## 9. Enum Values
 
-### DeviceStatus
+### 9.1 DeviceStatus
 
 ```
 Value  Name
@@ -283,7 +502,7 @@ Value  Name
 0x03   CALIBRATING
 ```
 
-### ControlState
+### 9.2 ControlState
 
 ```
 Value  Name
@@ -293,7 +512,7 @@ Value  Name
 0xFF   ERROR
 ```
 
-### Unit
+### 9.3 Unit
 
 ```
 Value  Name
@@ -317,7 +536,7 @@ Value  Name
 0xFF   UNITLESS
 ```
 
-### ErrorCode
+### 9.4 ErrorCode
 
 ```
 Value  Name
@@ -333,13 +552,13 @@ Value  Name
 
 ---
 
-## Device Behavior Requirements
+## 10. Device Behavior Requirements
 
 This section defines what the device must do when it receives each server command.
 
-### Packets Requiring ACK
+### 10.1 Packets Requiring Responses
 
-The device **must** send an ACK for the following packet types:
+The device MUST send a response for the following packet types:
 
 | Packet Type  | Required Response |
 |--------------|-------------------|
@@ -347,38 +566,46 @@ The device **must** send an ACK for the following packet types:
 | TIMESYNC_RESP| ACK |
 | STREAM_START | ACK (or NACK on error) |
 | STREAM_STOP  | ACK |
+| STATUS_REQUEST | STATUS |
+| CONTROL      | STATUS |
+| GET_SINGLE   | DATA |
 
-STATUS_REQUEST, CONTROL, and GET_SINGLE do not require ACK — the device responds with a STATUS or DATA packet instead.
+The server MUST send a response for the following packet types:
 
-### DISCOVERY
+| Packet Type  | Required Response |
+|--------------|-------------------|
+| TIMESYNC_REQ | TIMESYNC_RESP |
+| CONFIG       | ACK |
 
-The server broadcasts DISCOVERY packets to the multicast group 239.100.0.1:10000. When the device is disconnected from the server, it should listen to this multicast group and search for the DISCOVERY packet to get the server's IP.
+### 10.2 DISCOVERY
 
-### ESTOP
+The server broadcasts DISCOVERY packets to the multicast group 239.100.0.1:10000. When the device is disconnected from the server, it MUST listen to this multicast group and search for the DISCOVERY packet to get the server's IP.
 
-On receiving ESTOP, the device must immediately set **all controls to their default states** as defined in the device's configuration (the `default_state` field of each control). This is the safest state for the hardware. The device should also stop streaming if active.
+### 10.3 ESTOP
+
+On receiving ESTOP, the device MUST immediately set **all controls to their default states** as defined in the device's configuration (the `default_state` field of each control). This is the safest state for the hardware. The device MUST stop all active data streams.
 
 ESTOP does not require an ACK. The server assumes immediate compliance.
 
-### GET_SINGLE
+### 10.4 GET_SINGLE
 
-On receiving GET_SINGLE, the device must take **one reading from every sensor** and send a single batched DATA packet containing all readings.
+On receiving GET_SINGLE, the device MUST take **one reading from every sensor** and send single DATA packet containing one reading from every sensor.
 
-### CONTROL
+### 10.5 CONTROL
 
-On receiving CONTROL, the device must attempt to set the control state and send a STATUS packet with its current DeviceStatus and control states.
+On receiving CONTROL, the device MUST set the control state and send a STATUS packet with its current DeviceStatus and control states.
 
-### STATUS_REQUEST
+### 10.6 STATUS_REQUEST
 
-On receiving STATUS_REQUEST, the device must send a STATUS packet with its current DeviceStatus and control states.
+On receiving STATUS_REQUEST, the device MUST send a STATUS packet with its current DeviceStatus and control states.
 
-### Unknown Packet Types
+### 10.7 Unknown Packet Types
 
-If the device receives a packet with an unrecognized PACKET_TYPE, it must respond with a NACK using error code `UNKNOWN_TYPE` (0x01).
+If the device receives a packet with an unrecognized PACKET_TYPE, it MUST respond with a NACK using error code `UNKNOWN_TYPE` (0x01).
 
 ---
 
-## Connection Flow
+## 11. Connection Flow
 
 ```
  Server                                Device
@@ -391,11 +618,11 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
    |                                     |
    |------------ ACK ---------------->>  |  4. Server acknowledges config
    |                                     |
-   |<<------- TIMESYNC_REQ packet -------|  3. Device sends timesync request
+   |<<------- TIMESYNC_REQ packet -------|  5. Device sends timesync request
    |                                     |
-   |--------- TIMESYNC_RESP --------->>  |  5. Server sends time reference
+   |--------- TIMESYNC_RESP --------->>  |  6. Server sends time reference
    |                                     |
-   |<<------------ ACK ------------------|  6. Device acknowledges (server records sync)
+   |<<------------ ACK ------------------|  7. Device acknowledges (server records sync)
    |                                     |
    |        (normal operation)           |
    |                                     |
@@ -408,8 +635,8 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it must respon
    |                                     |
    |------------ STREAM_START ------->>  |  Start data streaming
    |<<------------ ACK ------------------|
-   |<<------------ DATA (batched) -------|  Continuous sensor data at requested Hz
-   |<<------------ DATA (batched) -------|
+   |<<------------ DATA -------|  Continuous sensor data at requested Hz
+   |<<------------ DATA -------|
    |                                     |
    |------------ CONTROL ------------>>  |  Valve/actuator command
    |<<----------- STATUS ----------------|
@@ -429,7 +656,7 @@ Key points:
 
 ---
 
-## CONFIG JSON Structure
+## 12. CONFIG JSON Structure
 
 The CONFIG packet carries a JSON object describing the device's capabilities. The server uses this to register sensors and controls.
 
@@ -492,7 +719,7 @@ The CONFIG packet carries a JSON object describing the device's capabilities. Th
 }
 ```
 
-### Example (PANDA-V3)
+### 12.1 Example (PANDA-V3)
 
 ```json
 {
@@ -631,10 +858,3 @@ The CONFIG packet carries a JSON object describing the device's capabilities. Th
     }
 }
 ```
-
-## Sequence Number Semantics
-
-- Each side maintains its own wrapping 0-255 counter.
-- Every packet sent increments the sender's counter.
-- When responding with ACK/NACK, the `ack_sequence`/`nack_sequence` field contains the sequence number from the original request's header.
-- This allows the receiver to match responses to requests when multiple are in flight.
