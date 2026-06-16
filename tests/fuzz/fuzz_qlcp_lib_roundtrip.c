@@ -386,11 +386,36 @@ static bool check_s2c_equality(const qlcp_client_payload *p1, const qlcp_client_
                    p1->payload_data.stream_start.header.timestamp_us == p2->payload_data.stream_start.header.timestamp_us &&
                    p1->payload_data.stream_start.stream_frequency == p2->payload_data.stream_start.stream_frequency;
         case QLCP_PT_CONTROL:
-            return p1->payload_data.control.header.sequence == p2->payload_data.control.header.sequence &&
-                   p1->payload_data.control.header.timestamp_us == p2->payload_data.control.header.timestamp_us &&
-                   p1->payload_data.control.control_data.id == p2->payload_data.control.control_data.id &&
-                   p1->payload_data.control.control_data.type == p2->payload_data.control.control_data.type &&
-                   p1->payload_data.control.control_data.state.control_uint32 == p2->payload_data.control.control_data.state.control_uint32;
+            if (p1->payload_data.control.header.sequence != p2->payload_data.control.header.sequence ||
+                p1->payload_data.control.header.timestamp_us != p2->payload_data.control.header.timestamp_us ||
+                p1->payload_data.control.control_data.id != p2->payload_data.control.control_data.id ||
+                p1->payload_data.control.control_data.type != p2->payload_data.control.control_data.type) {
+                return false;
+            }
+            // Compare only the active union member based on type
+            switch (p1->payload_data.control.control_data.type) {
+            case QLCP_CONTROL_BOOL:
+                if (p1->payload_data.control.control_data.state.control_bool != 
+                    p2->payload_data.control.control_data.state.control_bool) return false;
+                break;
+            case QLCP_CONTROL_UINT32:
+                if (p1->payload_data.control.control_data.state.control_uint32 != 
+                    p2->payload_data.control.control_data.state.control_uint32) return false;
+                break;
+            case QLCP_CONTROL_INT32:
+                if (p1->payload_data.control.control_data.state.control_int32 != 
+                    p2->payload_data.control.control_data.state.control_int32) return false;
+                break;
+            case QLCP_CONTROL_FLOAT32:
+                if (!compare_float_bytes(p1->payload_data.control.control_data.state.control_float32, 
+                    p2->payload_data.control.control_data.state.control_float32)) {
+                    return false;
+                }
+                break;
+            default:
+                   return false;
+            }
+            return true;
         case QLCP_PT_TIMESYNC_RESP:
             return p1->payload_data.timesync_resp.header.sequence == p2->payload_data.timesync_resp.header.sequence &&
                    p1->payload_data.timesync_resp.header.timestamp_us == p2->payload_data.timesync_resp.header.timestamp_us &&
@@ -448,9 +473,31 @@ static bool check_c2s_equality(const qlcp_server_payload *p1, const qlcp_server_
             }
             for (size_t i = 0; i < p1->payload_data.status.control_count; i++) {
                 if (p1->payload_data.status.control_data[i].id != p2->payload_data.status.control_data[i].id ||
-                    p1->payload_data.status.control_data[i].type != p2->payload_data.status.control_data[i].type ||
-                    p1->payload_data.status.control_data[i].state.control_uint32 != p2->payload_data.status.control_data[i].state.control_uint32) {
-                    return false;
+                    p1->payload_data.status.control_data[i].type != p2->payload_data.status.control_data[i].type) {
+                        return false;
+                }
+
+                // Compare only the active union member based on type
+                switch (p1->payload_data.status.control_data[i].type) {
+                case QLCP_CONTROL_BOOL:
+                    if (p1->payload_data.status.control_data[i].state.control_bool != 
+                        p2->payload_data.status.control_data[i].state.control_bool) return false;
+                    break;
+                case QLCP_CONTROL_UINT32:
+                    if (p1->payload_data.status.control_data[i].state.control_uint32 != 
+                        p2->payload_data.status.control_data[i].state.control_uint32) return false;
+                case QLCP_CONTROL_INT32:
+                    if (p1->payload_data.status.control_data[i].state.control_int32 != 
+                        p2->payload_data.status.control_data[i].state.control_int32) return false;
+                    break;
+                case QLCP_CONTROL_FLOAT32:
+                    if (!compare_float_bytes(p1->payload_data.status.control_data[i].state.control_float32, 
+                        p2->payload_data.status.control_data[i].state.control_float32)) {
+                        return false;
+                    }
+                    break;
+                default:
+                       return false;
                 }
             }
             return true;

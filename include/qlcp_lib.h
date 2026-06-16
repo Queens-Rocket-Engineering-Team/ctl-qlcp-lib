@@ -2,6 +2,7 @@
 #define QLCP_LIB_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 //----------------------------------------------------------
 // Enums
@@ -17,6 +18,7 @@ typedef enum {
     QLCP_NO_MAGIC_NUM,
     QLCP_INVALID_HEADER,
     QLCP_INVALID_PACKET_TYPE,
+    QLCP_INVALID_PACKET,
 } qlcp_lib_ret;
 
 typedef enum {

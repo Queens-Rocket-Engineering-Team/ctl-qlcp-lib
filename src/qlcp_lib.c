@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <string.h>
 #include <assert.h>
 
@@ -236,8 +237,29 @@ qlcp_lib_ret qlcp_encode_control(uint8_t buffer[], size_t *buffer_len, const qlc
     size_t offset = QLCP_HEADER_SIZE;
     buffer[offset++] = control->control_data.id;
     buffer[offset++] = control->control_data.type;
-    // Treating as a uint32 as it covers all possible sizes in the union and cooperates with bitshifts
-    s_pack_be32(buffer, &offset, control->control_data.state.control_uint32);
+
+    // Avoid breaking C++ union type punning rules for compatibility
+    switch (control->control_data.type) {
+    case QLCP_CONTROL_BOOL:
+        s_pack_be32(buffer, &offset, (uint32_t)control->control_data.state.control_bool);
+        break;
+    case QLCP_CONTROL_UINT32:
+        s_pack_be32(buffer, &offset, control->control_data.state.control_uint32);
+        break;
+    case QLCP_CONTROL_INT32:
+        s_pack_be32(buffer, &offset, (uint32_t)control->control_data.state.control_int32);
+        break;
+    case QLCP_CONTROL_FLOAT32:
+        {
+            // Copy the exact bytes from a float
+            uint32_t state_bytes;
+            memcpy(&state_bytes, &control->control_data.state.control_float32, sizeof(uint32_t));
+            s_pack_be32(buffer, &offset, state_bytes);
+        }
+        break;
+    default:
+        return QLCP_INVALID_PACKET;
+    }
 
     return QLCP_OK;
 }
@@ -303,7 +325,28 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
     for (size_t i = 0; i < status->control_count; i++) {
         buffer[offset++] = status->control_data[i].id;
         buffer[offset++] = status->control_data[i].type;
-        s_pack_be32(buffer, &offset, status->control_data[i].state.control_uint32);
+        // Avoid breaking C++ union type punning rules for compatibility
+        switch (status->control_data[i].type) {
+        case QLCP_CONTROL_BOOL:
+            s_pack_be32(buffer, &offset, (uint32_t)status->control_data[i].state.control_bool);
+            break;
+        case QLCP_CONTROL_UINT32:
+            s_pack_be32(buffer, &offset, status->control_data[i].state.control_uint32);
+            break;
+        case QLCP_CONTROL_INT32:
+            s_pack_be32(buffer, &offset, (uint32_t)status->control_data[i].state.control_int32);
+            break;
+        case QLCP_CONTROL_FLOAT32:
+            {
+                // Copy the exact bytes from a float
+                uint32_t state_bytes;
+                memcpy(&state_bytes, &status->control_data[i].state.control_float32, sizeof(uint32_t));
+                s_pack_be32(buffer, &offset, state_bytes);
+            }
+            break;
+        default:
+            return QLCP_INVALID_PACKET;
+        }
     }
     return QLCP_OK;
 }
@@ -509,7 +552,26 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
             for (size_t i = 0; i < control_count; i++) {
                 payload_buffers->control_data[i].id = buffer[offset++];
                 payload_buffers->control_data[i].type = buffer[offset++];
-                payload_buffers->control_data[i].state.control_uint32 = s_unpack_be32(buffer, &offset);
+                // Avoid breaking C++ union type punning rules for compatibility
+                switch (payload_buffers->control_data[i].type) {
+                case QLCP_CONTROL_BOOL:
+                    payload_buffers->control_data[i].state.control_bool = (uint8_t)s_unpack_be32(buffer, &offset);
+                    break;
+                case QLCP_CONTROL_UINT32:
+                    payload_buffers->control_data[i].state.control_uint32 = s_unpack_be32(buffer, &offset);
+                    break;
+                case QLCP_CONTROL_INT32:
+                    payload_buffers->control_data[i].state.control_int32 = (uint32_t)s_unpack_be32(buffer, &offset);
+                    break;
+                case QLCP_CONTROL_FLOAT32:
+                    {
+                        const uint32_t state_bytes = s_unpack_be32(buffer, &offset);
+                        memcpy(&payload_buffers->control_data[i].state.control_float32, &state_bytes, sizeof(uint32_t));
+                    }
+                    break;
+                default:
+                    return QLCP_INVALID_PACKET;
+                }
             }
         }
         break;
@@ -656,7 +718,26 @@ qlcp_lib_ret qlcp_decode_server_to_client(qlcp_client_payload *payload, const ui
             size_t offset = QLCP_HEADER_SIZE;
             payload->payload_data.control.control_data.id = buffer[offset++];
             payload->payload_data.control.control_data.type = buffer[offset++];
-            payload->payload_data.control.control_data.state.control_uint32 = s_unpack_be32(buffer, &offset);
+            // Avoid breaking C++ union type punning rules for compatibility
+            switch (payload->payload_data.control.control_data.type) {
+            case QLCP_CONTROL_BOOL:
+                payload->payload_data.control.control_data.state.control_bool = (uint8_t)s_unpack_be32(buffer, &offset);
+                break;
+            case QLCP_CONTROL_UINT32:
+                payload->payload_data.control.control_data.state.control_uint32 = s_unpack_be32(buffer, &offset);
+                break;
+            case QLCP_CONTROL_INT32:
+                payload->payload_data.control.control_data.state.control_int32 = (uint32_t)s_unpack_be32(buffer, &offset);
+                break;
+            case QLCP_CONTROL_FLOAT32:
+                {
+                    const uint32_t state_bytes = s_unpack_be32(buffer, &offset);
+                    memcpy(&payload->payload_data.control.control_data.state.control_float32, &state_bytes, sizeof(uint32_t));
+                }
+                break;
+            default:
+                return QLCP_INVALID_PACKET;
+            }
         }
         break;
     case QLCP_PT_TIMESYNC_RESP:
