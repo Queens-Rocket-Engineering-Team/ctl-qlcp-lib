@@ -1,3 +1,4 @@
 build/
 dist/
 tests/fuzz/decode_corpus/
+tests/fuzz/roundtrip_corpus/
