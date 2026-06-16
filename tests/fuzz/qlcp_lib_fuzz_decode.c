@@ -20,9 +20,23 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     uint16_t packet_len = 0;
     qlcp_get_packet_len(&packet_len, data, size);
 
+    // fix buffer with magic number and version
+    if (size < QLCP_HEADER_SIZE) {
+        return 0;
+    }
+    if (size > 4096) {
+        size = 4096;
+    }
+    uint8_t fixed_data[4096];
+    memcpy(fixed_data, data, size);
+    static const uint8_t qlcp_magic_num[] = {'Q', 'L', 'C', 'P'};
+    static const uint8_t qlcp_version_num = 3;
+    memcpy(fixed_data, qlcp_magic_num, 4);
+    fixed_data[4] = qlcp_version_num;
+
     // client decode fuzzing
     qlcp_client_payload client_payload = {0};
-    qlcp_decode_server_to_client(&client_payload, data, size);
+    qlcp_decode_server_to_client(&client_payload, fixed_data, size);
 
     // server decode fuzzing
     qlcp_server_payload server_payload = {0};
@@ -36,7 +50,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         .config_data_len = sizeof(g_config_buffer)
     };
 
-    qlcp_decode_client_to_server(&server_payload, &payload_buffers, data, size);
+    qlcp_decode_client_to_server(&server_payload, &payload_buffers, fixed_data, size);
 
     return 0; 
 }
