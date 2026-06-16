@@ -29,7 +29,7 @@ When a device receives a DISCOVERY packet, it extracts the server's IP address f
 
 ## More Information
 
-Refer to PROTOCOL_SPECIFICATION.md for an in-depth explanation of all packet types and enums.
+Refer to the [Protocol Specification](PROTOCOL_SPECIFICATION.md) for an in-depth explanation of all packet types and enums.
 
 ---
 
