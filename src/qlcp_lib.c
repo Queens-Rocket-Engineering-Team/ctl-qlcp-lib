@@ -373,19 +373,15 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
     if (buffer == NULL || buffer_len == NULL || config == NULL || config->config_data == NULL) {
         return QLCP_NULL_PTR;
     }
-    uint32_t packet_data_len = config->config_data_len;
-    if (config->config_data_len > 0 && config->config_data[config->config_data_len - 1] == '\0') {
-        packet_data_len--; // Remove null terminator from config_data if present (should always be raw binary)
-    }
-    if (*buffer_len < QLCP_CONFIG_PACKET_SIZE(packet_data_len)) {
+    if (*buffer_len < QLCP_CONFIG_PACKET_SIZE(config->config_data_len)) {
         return QLCP_NO_MEM;
     }
-    *buffer_len = QLCP_CONFIG_PACKET_SIZE(packet_data_len);
+    *buffer_len = QLCP_CONFIG_PACKET_SIZE(config->config_data_len);
 
     const qlcp_header_internal header_data = {
         .packet_type = QLCP_PT_CONFIG,
         .sequence = config->header.sequence,
-        .packet_length = QLCP_CONFIG_PACKET_SIZE(packet_data_len),
+        .packet_length = QLCP_CONFIG_PACKET_SIZE(config->config_data_len),
         .timestamp_us = config->header.timestamp_us,
     };
 
@@ -394,7 +390,7 @@ qlcp_lib_ret qlcp_encode_config(uint8_t buffer[], size_t *buffer_len, const qlcp
         return ret;
     }
 
-    memcpy(buffer + QLCP_CONFIG_PACKET_SIZE(0), config->config_data, packet_data_len);
+    memcpy(buffer + QLCP_CONFIG_PACKET_SIZE(0), config->config_data, config->config_data_len);
 
     return QLCP_OK;
 }
