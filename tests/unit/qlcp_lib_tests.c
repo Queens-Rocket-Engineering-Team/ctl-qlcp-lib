@@ -340,12 +340,10 @@ void test_data_encode_decode(void) {
     const qlcp_sensor_data sensor_data[] = {
         {
             .id = 0,
-            .unit = QLCP_UNIT_HERTZ,
             .value = __FLT_MAX__
         },
         {
             .id = 1,
-            .unit = QLCP_UNIT_AMPS,
             .value = __FLT_MIN__
         },
     };
@@ -373,7 +371,6 @@ void test_data_encode_decode(void) {
     if (run_decode_generic(g_buffer, buffer_len, test_case)) {
         TEST_ASSERT_EQUAL_UINT8(data.sensor_count, g_server_payload.payload_data.data.sensor_count);
         for (size_t i = 0; i < data.sensor_count; i++) {
-            TEST_ASSERT_EQUAL_UINT8(sensor_data[i].unit, g_server_payload.payload_data.data.sensor_data[i].unit);
             TEST_ASSERT_EQUAL_FLOAT(sensor_data[i].value, g_server_payload.payload_data.data.sensor_data[i].value);
         }
     }

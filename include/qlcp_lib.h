@@ -58,26 +58,6 @@ typedef enum {
 } qlcp_control_state;
 
 typedef enum {
-    QLCP_UNIT_VOLTS = 0x00,
-    QLCP_UNIT_AMPS = 0x01,
-    QLCP_UNIT_CELSIUS = 0x02,
-    QLCP_UNIT_FAHRENHEIT = 0x03,
-    QLCP_UNIT_KELVIN = 0x04,
-    QLCP_UNIT_PSI = 0x05,
-    QLCP_UNIT_BAR = 0x06,
-    QLCP_UNIT_PASCAL = 0x07,
-    QLCP_UNIT_GRAMS = 0x08,
-    QLCP_UNIT_KILOGRAMS = 0x09,
-    QLCP_UNIT_POUNDS = 0x0A,
-    QLCP_UNIT_NEWTONS = 0x0B,
-    QLCP_UNIT_SECONDS = 0x0C,
-    QLCP_UNIT_MILLISECONDS = 0x0D,
-    QLCP_UNIT_HERTZ = 0x0E,
-    QLCP_UNIT_OHMS = 0x0F,
-    QLCP_UNIT_UNITLESS = 0xFF,
-} qlcp_unit;
-
-typedef enum {
     // Packet error codes
     QLCP_ERR_NONE = 0x00,
     QLCP_ERR_UNKNOWN_TYPE = 0x01,
@@ -95,7 +75,7 @@ typedef enum {
 #define QLCP_HEADER_SIZE 17
 
 #define QLCP_CONTROL_DATA_SIZE 6
-#define QLCP_SENSOR_DATA_SIZE 6
+#define QLCP_SENSOR_DATA_SIZE 5
 
 #define QLCP_STREAM_START_DATA_SIZE 2
 #define QLCP_TIMESYNC_RESP_DATA_SIZE 18
@@ -138,7 +118,6 @@ typedef struct {
 // Struct for variable-length sensor data in data packet
 typedef struct {
     uint8_t id;
-    uint8_t unit;
     float value;
 } qlcp_sensor_data;
 

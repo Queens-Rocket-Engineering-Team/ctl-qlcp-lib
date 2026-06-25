@@ -457,7 +457,6 @@ static bool check_c2s_equality(const qlcp_server_payload *p1, const qlcp_server_
             }
             for (size_t i = 0; i < p1->payload_data.data.sensor_count; i++) {
                 if (p1->payload_data.data.sensor_data[i].id != p2->payload_data.data.sensor_data[i].id ||
-                    p1->payload_data.data.sensor_data[i].unit != p2->payload_data.data.sensor_data[i].unit ||
                     !compare_float_bytes(p1->payload_data.data.sensor_data[i].value, p2->payload_data.data.sensor_data[i].value)) {
                     return false;
                 }
