@@ -377,7 +377,6 @@ qlcp_lib_ret qlcp_encode_data(uint8_t buffer[], size_t *buffer_len, const qlcp_d
 
     for (size_t i = 0; i < data->sensor_count; i++) {
         buffer[offset++] = data->sensor_data[i].id;
-        buffer[offset++] = data->sensor_data[i].unit;
         // Copy the exact bytes from a float
         uint32_t value_bytes;
         memcpy(&value_bytes, &data->sensor_data[i].value, sizeof(uint32_t));
@@ -598,7 +597,6 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
 
             for (size_t i = 0; i < sensor_count; i++) {
                 payload_buffers->sensor_data[i].id = buffer[offset++];
-                payload_buffers->sensor_data[i].unit = buffer[offset++];
                 // Bytes to float
                 const uint32_t value_bytes = s_unpack_be32(buffer, &offset);
                 memcpy(&payload_buffers->sensor_data[i].value, &value_bytes, sizeof(uint32_t));

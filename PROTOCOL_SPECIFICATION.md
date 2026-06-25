@@ -443,10 +443,9 @@ Offset  Size  Type    Field     Description
 0-16    17    -       header    Standard header
 17      1     uint8   count     Number of sensor readings (N)
 
-Repeated N times (6 bytes each):
+Repeated N times (5 bytes each):
 +0      1     uint8   sensor_id  Index in device's sensor array
-+1      1     uint8   unit       Unit enum value
-+2      4     float32 value      IEEE 754 single-precision float
++1      4     float32 value      IEEE 754 single-precision float
 ```
 
 ---
@@ -485,7 +484,7 @@ Offset      Size      Type    Field       Description
 | ACK            | 19               | 1B type + 1B seq |
 | NACK           | 20               | 1B type + 1B seq + 1B error |
 | STATUS         | 20 + 6*N         | 1B type + 1B seq + 1B count + N*(1B+1B+4B) |
-| DATA           | 18 + 6*N         | 1B count + N*(1B+1B+4B) |
+| DATA           | 18 + 5*N         | 1B count + N*(1B+4B) |
 | CONFIG         | 17 + json_len    | json_data   |
 
 ---
@@ -503,7 +502,7 @@ Value  Name
 0x03   FLOAT32
 ```
 
-### 9.1 ControlState (For bool type controls)
+### 9.2 ControlState (For bool type controls)
 
 ```
 Value  Name
@@ -511,30 +510,6 @@ Value  Name
 0x00   CLOSED
 0x01   OPEN
 0xFF   ERROR
-```
-
-### 9.2 Unit
-
-```
-Value  Name
------  ------------
-0x00   VOLTS
-0x01   AMPS
-0x02   CELSIUS
-0x03   FAHRENHEIT
-0x04   KELVIN
-0x05   PSI
-0x06   BAR
-0x07   PASCAL
-0x08   GRAMS
-0x09   KILOGRAMS
-0x0A   POUNDS
-0x0B   NEWTONS
-0x0C   SECONDS
-0x0D   MILLISECONDS
-0x0E   HERTZ
-0x0F   OHMS
-0xFF   UNITLESS
 ```
 
 ### 9.3 ErrorCode
