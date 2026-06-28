@@ -561,7 +561,7 @@ The server broadcasts DISCOVERY packets to the multicast group 239.100.0.1:10000
 
 On receiving ESTOP, the device MUST immediately set **all controls to their default states** as defined in the device's configuration (the `default_state` field of each control). This is the safest state for the hardware. The device MUST stop all active data streams.
 
-ESTOP does not require an ACK. The server assumes immediate compliance.
+The device must respond with a STATUS packet containing its control states after the ESTOP.
 
 ### 10.4 GET_SINGLE
 
