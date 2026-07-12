@@ -675,6 +675,7 @@ Sensor and control objects must include a unit field. All other fields are not r
             "<name>": {
                 "control_index": "<string>",
                 "type": "<string>",
+                "default_state": "<float>",
                 "unit": "<string>"
             }
         }
