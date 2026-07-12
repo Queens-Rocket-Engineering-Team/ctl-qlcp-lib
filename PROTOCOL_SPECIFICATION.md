@@ -559,7 +559,7 @@ The server broadcasts DISCOVERY packets to the multicast group 239.100.0.1:10000
 
 ### 10.3 ESTOP
 
-On receiving ESTOP, the device MUST immediately set **all controls to their default states** as defined in the device's configuration (the `default_state` field of each control). This is the safest state for the hardware. The device MUST stop all active data streams.
+On receiving ESTOP, the device MUST immediately set **all controls to their default states** as defined in the device's configuration (the `default_state` field of each control). This is the safest state for the hardware.
 
 The device must respond with a STATUS packet containing its control states after the ESTOP.
 
@@ -611,8 +611,8 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it MUST respon
    |                                     |
    |------------ STREAM_START ------->>  |  Start data streaming
    |<<------------ ACK ------------------|
-   |<<------------ DATA -------|  Continuous sensor data at requested Hz
-   |<<------------ DATA -------|
+   |<<------------ DATA -----------------|  Continuous sensor data at requested Hz
+   |<<------------ DATA -----------------|
    |                                     |
    |------------ CONTROL ------------>>  |  Valve/actuator command
    |<<----------- STATUS ----------------|
@@ -620,8 +620,9 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it MUST respon
    |------------ STREAM_STOP -------->>  |  Stop streaming
    |<<------------ ACK ------------------|
    |                                     |
-   |------------- ESTOP ------------->>  |  Emergency stop (no ACK required)
-   |                                     |  Device sets all controls to defaults
+   |------------- ESTOP ------------->>  |  Emergency stop
+   |<<----------- STATUS ----------------|  Device sets all controls to defaults
+   |                                     |
 ```
 
 Key points:
