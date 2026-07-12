@@ -638,12 +638,13 @@ The CONFIG packet carries a JSON object describing the device's capabilities. Th
 
 ### 12.1 Schema
 
+Sensor and control objects must include a unit field. All other fields are not read by the server, and are only used for device setup. Therefore, they are flexible. Sensor and control groups are parsed from the server to group them.
+
 ```json
 {
     "device_name": "<string>",
-    "device_type": "Sensor Monitor",
 
-    "sensor_info": {
+    "sensors": {
         "thermocouple": {
             "<name>": {
                 "sensor_index": "<string>",
@@ -658,179 +659,28 @@ The CONFIG packet carries a JSON object describing the device's capabilities. Th
                 "max_pressure_PSI": "<int>",
                 "unit": "<string>"
             }
-        },
-        "load_cell": {
+        }
+    },
+    "controls": {
+        "valve": {
             "<name>": {
-                "sensor_index": "<string>",
-                "load_rating_N": "<float>",
-                "excitation_V": "<float>",
-                "sensitivity_vV": "<float>",
+                "control_index": "<string>",
+                "type": "<string>",
+                "default_state": "<string>",
                 "unit": "<string>"
             }
         },
-        "resistance_sensor" : {
-            "<name>" : {
-                "sensor_index": "<string>",
-                "injected_current_uA": "<int>",
-                "r_short": "<float>",
-                "unit" : "<string>"
+        "heater": {
+            "<name>": {
+                "control_index": "<string>",
+                "type": "<string>",
+                "unit": "<string>"
             }
-        },
-        "current_sensor" : {
-            "ignCurrent" : {
-                "sensor_index": "<string>",
-                "shunt_resistor_ohms" : "<float>",
-                "csa_gain" : "<int>",
-                "unit" : "<string>"
-            }
-        }
-    },
-    "controls": {
-        "<name>": {
-            "control_index": "<string>",
-            "type": "<string>",
-            "default_state": "<string>"
         }
     }
 }
 ```
 
-### 12.2 Example (PANDA-V3)
+### 12.2 Example
 
-```json
-{
-    "device_name": "PANDA-V3",
-    "device_type": "Sensor Monitor",
-
-    "sensor_info": {
-        "thermocouple": {
-            "TCRun": {
-                "sensor_index": "TC1",
-                "type" : "K",
-                "unit" : "C"
-            },
-            "TCCombustionChamber": {
-                "sensor_index": "TC2",
-                "type" : "K",
-                "unit" : "C"
-            }
-        },
-
-        "pressure_transducer": {
-            "PTRun": {
-                "sensor_index": "PT1",
-                "resistor_ohms": 250,
-                "max_pressure_PSI" : 1000,
-                "unit" : "PSI"
-            },
-            "PTCombustionChamber": {
-                "sensor_index": "PT2",
-                "resistor_ohms": 250,
-                "max_pressure_PSI" : 1000,
-                "unit" : "PSI"
-            },
-            "PTPreInjector": {
-                "sensor_index": "PT3",
-                "resistor_ohms": 250,
-                "max_pressure_PSI" : 1000,
-                "unit" : "PSI"
-            },
-            "PTN2OSupply": {
-                "sensor_index": "PT4",
-                "resistor_ohms": 250,
-                "max_pressure_PSI" : 1000,
-                "unit" : "PSI"
-            },
-            "PTN2Supply": {
-                "sensor_index": "PT5",
-                "resistor_ohms": 250,
-                "max_pressure_PSI" : 200,
-                "unit" : "PSI"
-            }
-        },
-
-        "load_cell": {
-            "LCFill": {
-                "sensor_index": "LC_FILL",
-                "load_rating_N" : 1962,
-                "excitation_V" : 5,
-                "sensitivity_vV" : 2,
-                "unit" : "kg"
-            },
-            "LCThrust": {
-                "sensor_index": "LC_THRUST",
-                "load_rating_N" : 5000,
-                "excitation_V" : 5,
-                "sensitivity_vV" : 2,
-                "unit" : "kg"
-            }
-        },
-
-        "resistance_sensor" : {
-            "ignResistance" : {
-                "sensor_index": "IGN_RESIST_READ",
-                "injected_current_uA": 1500,
-                "r_short": 47.683718,
-                "unit" : "ohms"
-            }
-        },
-
-        "current_sensor" : {
-            "ignCurrent" : {
-                "sensor_index": "IGN_CURRENT_READ",
-                "shunt_resistor_ohms" : 0.025,
-                "csa_gain" : 20,
-                "unit" : "A"
-            }
-        }
-    },
-
-    "controls": {
-        "AVN2OFill": {
-            "control_index": "AV_FILL",
-            "default_state": "CLOSED",
-            "type": "solenoid"
-        },
-        "AVRun": {
-            "control_index": "AV_RUN",
-            "default_state": "CLOSED",
-            "type": "solenoid"
-        },
-        "AVVent": {
-            "control_index": "AV3",
-            "default_state": "OPEN",
-            "type": "solenoid"
-        },
-        "AVN2Fill": {
-            "control_index": "AV4",
-            "default_state": "OPEN",
-            "type": "solenoid"
-        },
-        "AVPurge": {
-            "control_index": "AV5",
-            "default_state": "OPEN",
-            "type": "solenoid"
-        },
-        "AVDump": {
-            "control_index": "AV6",
-            "default_state" : "OPEN",
-            "type": "solenoid"
-        },
-        "Safe24": {
-            "control_index": "SAFE_24V_CTL",
-            "default_state" : "OPEN",
-            "type" : "relay"
-        },
-        "IgnPrime": {
-            "control_index": "IGNITOR_PRIME_CTL",
-            "default_state" : "OPEN",
-            "type" : "relay"
-        },
-        "IgnRun": {
-            "control_index": "IGNITOR_RUN_CTL",
-            "default_state" : "OPEN",
-            "type" : "relay"
-        }
-    }
-}
-```
+[Link to firmware repo config example.](https://github.com/Queens-Rocket-Engineering-Team/ctl-node-firmware/blob/main/esp_config.json)
