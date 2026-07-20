@@ -8,12 +8,12 @@
 
 // Private constants
 static const uint8_t QLCP_MAGIC_NUM[] = {'Q', 'L', 'C', 'P'};
-static_assert(sizeof(QLCP_MAGIC_NUM) == 4, "Magic number is not 4 bytes");
+_Static_assert(sizeof(QLCP_MAGIC_NUM) == 4, "Magic number is not 4 bytes");
 
 #define QLCP_PROTOCOL_VERSION 3
 
 // C does not guaruntee IEE 754 floats
-static_assert(sizeof(float) == 4, "Float size is not 32 bits, protocol assumes IEEE 754 32 bit floats");
+_Static_assert(sizeof(float) == 4, "Float size is not 32 bits, protocol assumes IEEE 754 32 bit floats");
 
 // Big-endian helpers
 static inline void s_pack_be16(uint8_t *buffer, size_t *offset, uint16_t value);
