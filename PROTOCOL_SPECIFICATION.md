@@ -1,6 +1,6 @@
 # QRET Launch Control Protocol - Wire Format Specification
 
-## 1. Introduction 
+## 1. Introduction
 
 This document is the authoritative wire-format reference for the QRET Launch Control binary protocol. All devices must implement this protocol to communicate with the Launch Control Server.
 
@@ -54,7 +54,7 @@ Server Time is the monotonic clock maintained by the server.
 
 #### 3.4.3 Protocol Timestamp
 
-The TIMESTAMP field contained in packet headers. 
+The TIMESTAMP field contained in packet headers.
 
 Before the initial time synchronization, the protocol timestamp is equivalent to Device Time.
 
@@ -82,7 +82,7 @@ Sensor and control IDs are session-local. They are derived from the CONFIG packe
 
 ## 4. Transport
 
-QLCP uses multiple network transport protocols depending on the traffic type. 
+QLCP uses multiple network transport protocols depending on the traffic type.
 
 ### 4.1 Discovery Transport
 
@@ -187,7 +187,7 @@ Value  Name            Direction        Description
 
 Length: 17 bytes
 
-These packets have no payload. 
+These packets have no payload.
 
 | Packet Type    | Value |
 |----------------|-------|
@@ -255,7 +255,7 @@ Offset  Size  Type    Field         Description
 
 ---
 
-### 7.4 CONTROL 
+### 7.4 CONTROL
 
 Length: 23 bytes
 
@@ -298,7 +298,7 @@ Offset  Size  Type    Field           Description
 
 ---
 
-### 7.6 NACK 
+### 7.6 NACK
 
 Length: 20 bytes
 
@@ -329,7 +329,7 @@ Purpose: Synchronize the device clock to the server clock using a four-timestamp
 
 The server participates statelessly. It records timestamps and echoes values from the request but does not compute the clock offset.
 
-#### 7.7.1 TIMESYNC_REQ 
+#### 7.7.1 TIMESYNC_REQ
 
 Length: 17 bytes
 
@@ -427,7 +427,7 @@ ESP32 crystal oscillators drift approximately 10 ppm. Over 1 minute this is ~0.6
 
 ### 7.8 DATA
 
-Length: 18 + 6*N bytes, where N is the number of sensors.
+Length: 18 + 5*N bytes, where N is the number of sensors.
 
 Direction: Device -> Server
 
@@ -606,7 +606,7 @@ If the device receives a packet with an unrecognized PACKET_TYPE, it MUST respon
    |<<------------ ACK ------------------|
    |                                     |
    |<<------- TIMESYNC_REQ packet -------|  Periodic resync (every 1 min)
-   |--------- TIMESYNC_RESP --------->>  |  
+   |--------- TIMESYNC_RESP --------->>  |
    |<<------------ ACK ------------------|
    |                                     |
    |------------ STREAM_START ------->>  |  Start data streaming
