@@ -9,11 +9,11 @@
 
 static uint8_t g_encode_buffer[4096];
 static qlcp_sensor_data g_encode_sensor_buffer[200];
-static qlcp_control_data g_encode_control_buffer[200];
+static qlcp_status_data g_encode_control_buffer[200];
 static uint8_t g_encode_config_buffer[2048];
 
 static qlcp_sensor_data g_decode_sensor_buffer[200];
-static qlcp_control_data g_decode_control_buffer[200];
+static qlcp_status_data g_decode_control_buffer[200];
 static uint8_t g_decode_config_buffer[2048];
 
 static int fuzz_s2c_packet(const uint8_t *data, size_t size);
@@ -472,7 +472,8 @@ static bool check_c2s_equality(const qlcp_server_payload *p1, const qlcp_server_
             }
             for (size_t i = 0; i < p1->payload_data.status.control_count; i++) {
                 if (p1->payload_data.status.control_data[i].id != p2->payload_data.status.control_data[i].id ||
-                    p1->payload_data.status.control_data[i].type != p2->payload_data.status.control_data[i].type) {
+                    p1->payload_data.status.control_data[i].type != p2->payload_data.status.control_data[i].type ||
+                    p1->payload_data.status.control_data[i].status != p2->payload_data.status.control_data[i].status) {
                         return false;
                 }
 

@@ -51,10 +51,16 @@ typedef enum {
 } qlcp_control_type;
 
 typedef enum {
+    // Control status
+    QLCP_CONTROL_STATUS_CONFIRMED = 0x00,
+    QLCP_CONTROL_STATUS_PENDING = 0x01,
+    QLCP_CONTROL_STATUS_ERROR = 0xFF,
+} qlcp_control_status;
+
+typedef enum {
     // Control state, used for bool type controls
     QLCP_CS_CLOSED = 0x00,
     QLCP_CS_OPEN = 0x01,
-    QLCP_CS_ERROR = 0xFF,
 } qlcp_control_state;
 
 typedef enum {
@@ -81,7 +87,7 @@ typedef enum {
 #define QLCP_TIMESYNC_RESP_DATA_SIZE 18
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (QLCP_CONTROL_DATA_SIZE * (control_count)))
+#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (7 * (control_count)))
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * (sensor_count)))
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
@@ -103,17 +109,28 @@ typedef struct {
     uint64_t timestamp_us;
 } qlcp_header;
 
-// Struct for variable-length control data data in status packet
+// Union for the value of a control
+typedef union {
+    uint8_t control_bool;
+    uint32_t control_uint32;
+    int32_t control_int32;
+    float control_float32;
+} qlcp_control_state_data;
+
+// Struct for control data in the control packet
 typedef struct {
     uint8_t id;
     uint8_t type;
-    union {
-        uint8_t control_bool;
-        uint32_t control_uint32;
-        int32_t control_int32;
-        float control_float32;
-    } state;
+    qlcp_control_state_data state;
 } qlcp_control_data;
+
+// Struct for variable-length control data in the status packet
+typedef struct {
+    uint8_t id;
+    uint8_t type;
+    uint8_t status;
+    qlcp_control_state_data state;
+} qlcp_status_data;
 
 // Struct for variable-length sensor data in data packet
 typedef struct {
@@ -166,7 +183,7 @@ typedef struct {
     uint8_t ack_packet_type;
     uint8_t ack_sequence;
     uint8_t control_count;
-    const qlcp_control_data *control_data;
+    const qlcp_status_data *control_data;
 } qlcp_status_packet;
 
 typedef struct {
@@ -184,7 +201,7 @@ typedef struct {
 // Payload tagged unions
 
 typedef struct {
-    qlcp_control_data *control_data;
+    qlcp_status_data *control_data;
     uint8_t control_data_len;
     qlcp_sensor_data *sensor_data;
     uint8_t sensor_data_len;
