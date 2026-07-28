@@ -177,6 +177,8 @@ Value  Name            Direction        Description
 
 0x13   ACK             Any -> Any Positive acknowledgment
 0x14   NACK            Any -> Any Negative acknowledgment with error
+
+0xFF   NO_ACK          Never sent   Sentinel ack_packet_type for unsolicited STATUS updates
 ```
 
 ---
@@ -207,10 +209,21 @@ Length: Variable, 20 + 7*N bytes, where N is the number of controls.
 
 Direction: Device → Server
 
-Purpose: Reports the current device control states.
-STATUS is sent in response to CONTROL and STATUS_REQUEST packets.
+Purpose: Reports the current device control states. STATUS is sent either in
+response to CONTROL and STATUS_REQUEST packets, or unsolicited as a
+device-initiated status update.
 
-The STATUS packet represents the device state after the request has been processed.
+The STATUS packet represents the device state after the request has been
+processed, or the current device state at time of sending for an unsolicited
+STATUS.
+
+When sending an unsolicited STATUS update (that is, not a response to a CONTROL
+or STATUS_REQUEST), the device MUST set `ack_packet_type` to `NO_ACK` (`0xFF`),
+and MAY use any `ack_sequence`.
+
+The server MUST ignore command response tracking on STATUS updates with
+`ack_packet_type` set to `NO_ACK`, and otherwise MUST process the STATUS update
+as normal.
 
 For each control:
 

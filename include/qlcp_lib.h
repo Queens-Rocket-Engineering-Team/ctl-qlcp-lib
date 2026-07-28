@@ -40,6 +40,9 @@ typedef enum {
     // All
     QLCP_PT_ACK = 0x13,
     QLCP_PT_NACK = 0x14,
+    // Sentinel - not a real packet type, used to indicate that a normally ACKed
+    // packet was sent unsolicited. This will never appear in a header.
+    QLCP_PT_NO_ACK = 0xFF,
 } qlcp_packet_type;
 
 typedef enum {
