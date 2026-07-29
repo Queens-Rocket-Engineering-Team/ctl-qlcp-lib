@@ -84,13 +84,14 @@ typedef enum {
 #define QLCP_HEADER_SIZE 17
 
 #define QLCP_CONTROL_DATA_SIZE 6
+#define QLCP_STATUS_DATA_SIZE 7
 #define QLCP_SENSOR_DATA_SIZE 5
 
 #define QLCP_STREAM_START_DATA_SIZE 2
 #define QLCP_TIMESYNC_RESP_DATA_SIZE 18
 #define QLCP_ACK_DATA_SIZE 2
 #define QLCP_NACK_DATA_SIZE 3
-#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (7 * (control_count)))
+#define QLCP_STATUS_DATA_SIZE(control_count) (3 + (QLCP_STATUS_DATA_SIZE * (control_count)))
 #define QLCP_DATA_DATA_SIZE(sensor_count) (1 + (QLCP_SENSOR_DATA_SIZE * (sensor_count)))
 
 #define QLCP_STREAM_START_PACKET_SIZE (QLCP_HEADER_SIZE + QLCP_STREAM_START_DATA_SIZE)
