@@ -178,7 +178,7 @@ Value  Name            Direction        Description
 0x13   ACK             Any -> Any Positive acknowledgment
 0x14   NACK            Any -> Any Negative acknowledgment with error
 
-0xFF   NO_ACK          Never sent   Sentinel ack_packet_type for unsolicited STATUS updates
+0xFF   NO_ACK          Never sent   Sentinel ack_packet_type for unsolicited STATUS packets. Never set as packet_type in a header.
 ```
 
 ---
