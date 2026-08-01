@@ -325,6 +325,17 @@ qlcp_lib_ret qlcp_encode_status(uint8_t buffer[], size_t *buffer_len, const qlcp
     for (size_t i = 0; i < status->control_count; i++) {
         buffer[offset++] = status->control_data[i].id;
         buffer[offset++] = status->control_data[i].type;
+        buffer[offset++] = status->control_data[i].status;
+
+        switch (status->control_data[i].status) {
+        case QLCP_CONTROL_STATUS_CONFIRMED:
+        case QLCP_CONTROL_STATUS_PENDING:
+        case QLCP_CONTROL_STATUS_ERROR:
+            break;
+        default:
+            return QLCP_INVALID_PACKET;
+        }
+
         // Avoid breaking C++ union type punning rules for compatibility
         switch (status->control_data[i].type) {
         case QLCP_CONTROL_BOOL:
@@ -551,6 +562,17 @@ qlcp_lib_ret qlcp_decode_client_to_server(qlcp_server_payload *payload, qlcp_ser
             for (size_t i = 0; i < control_count; i++) {
                 payload_buffers->control_data[i].id = buffer[offset++];
                 payload_buffers->control_data[i].type = buffer[offset++];
+                payload_buffers->control_data[i].status = buffer[offset++];
+
+                switch (payload_buffers->control_data[i].status) {
+                case QLCP_CONTROL_STATUS_CONFIRMED:
+                case QLCP_CONTROL_STATUS_PENDING:
+                case QLCP_CONTROL_STATUS_ERROR:
+                    break;
+                default:
+                    return QLCP_INVALID_PACKET;
+                }
+
                 // Avoid breaking C++ union type punning rules for compatibility
                 switch (payload_buffers->control_data[i].type) {
                 case QLCP_CONTROL_BOOL:

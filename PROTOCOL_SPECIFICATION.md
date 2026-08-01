@@ -177,6 +177,8 @@ Value  Name            Direction        Description
 
 0x13   ACK             Any -> Any Positive acknowledgment
 0x14   NACK            Any -> Any Negative acknowledgment with error
+
+0xFF   NO_ACK          Never sent   Sentinel ack_packet_type for unsolicited STATUS packets. Never set as packet_type in a header.
 ```
 
 ---
@@ -203,15 +205,33 @@ These packets have no payload.
 
 ### 7.2 STATUS
 
-Length: Variable, 20 + 6*N bytes, where N is the number of controls.
+Length: Variable, 20 + 7*N bytes, where N is the number of controls.
 
 Direction: Device → Server
 
-Purpose: Reports the current device control states.
-STATUS is sent in response to CONTROL and STATUS_REQUEST packets.
+Purpose: Reports the current device control states. STATUS is sent either in
+response to CONTROL and STATUS_REQUEST packets, or unsolicited as a
+device-initiated status update.
 
-The STATUS packet represents the device state after the
-request has been processed.
+The STATUS packet represents the device state after the request has been
+processed, or the current device state at time of sending for an unsolicited
+STATUS.
+
+When sending an unsolicited STATUS update (that is, not a response to a CONTROL
+or STATUS_REQUEST), the device MUST set `ack_packet_type` to `NO_ACK` (`0xFF`),
+and MAY use any `ack_sequence`.
+
+The server MUST ignore command response tracking on STATUS updates with
+`ack_packet_type` set to `NO_ACK`, and otherwise MUST process the STATUS update
+as normal.
+
+For each control:
+
+- If `control_status` is `CONFIRMED`, `control_state` represents the current state of that control
+- If `control_status` is `PENDING`, `control_state` represents the last commanded state of that control
+- If `control_status` is `ERROR`, `control_state` is undefined and the value should not be used
+
+These statuses exist for situations where the device may need acknowledgement from an external node on control status.
 
 The `count` field specifies the number of control states
 contained in the packet.
@@ -226,10 +246,11 @@ Offset  Size  Type    Field            Description
 18      1     uint8   ack_sequence     Sequence number of packet being acknowledged
 19      1     uint8   count            Number of valves/controls (N)
 
-Repeated N times (6 bytes each):
+Repeated N times (7 bytes each):
 +0      1     uint8    control_id       Index in device's control array
 +1      1     uint8    control_type     Control's type from control type enum
-+2      4     variable control_state    Control's desired state
++2      1     uint8    control_status   Control's confirmation status from control status enum
++3      4     variable control_state    Control's state, interpreted per control_status
 ```
 
 ---
@@ -483,7 +504,7 @@ Offset      Size      Type    Field       Description
 | CONTROL        | 23               | 1B cmd_id + 1B cmd_type + 4B state |
 | ACK            | 19               | 1B type + 1B seq |
 | NACK           | 20               | 1B type + 1B seq + 1B error |
-| STATUS         | 20 + 6*N         | 1B type + 1B seq + 1B count + N*(1B+1B+4B) |
+| STATUS         | 20 + 7*N         | 1B type + 1B seq + 1B count + N*(1B+1B+1B+4B) |
 | DATA           | 18 + 5*N         | 1B count + N*(1B+4B) |
 | CONFIG         | 17 + json_len    | json_data   |
 
@@ -502,17 +523,26 @@ Value  Name
 0x03   FLOAT32
 ```
 
-### 9.2 ControlState (For bool type controls)
+### 9.2 ControlStatus
+
+```
+Value  Name
+-----  -----
+0x00   CONFIRMED
+0x01   PENDING
+0xFF   ERROR
+```
+
+### 9.3 ControlState (For bool type controls)
 
 ```
 Value  Name
 -----  ------
 0x00   CLOSED
 0x01   OPEN
-0xFF   ERROR
 ```
 
-### 9.3 ErrorCode
+### 9.4 ErrorCode
 
 ```
 Value  Name
