@@ -13,7 +13,7 @@ static qlcp_client_payload g_client_payload;
 static qlcp_server_payload g_server_payload;
 
 static qlcp_sensor_data g_sensor_buffer[200];
-static qlcp_control_data g_control_buffer[200];
+static qlcp_status_data g_control_buffer[200];
 static uint8_t g_config_buffer[4096];
 static qlcp_server_payload_buffers g_server_payload_buffers;
 
@@ -377,10 +377,11 @@ void test_data_encode_decode(void) {
 }
 
 void test_status_encode_decode(void) {
-    const qlcp_control_data control_data[] = {
+    const qlcp_status_data control_data[] = {
         {
             .id = 0,
             .type = QLCP_CONTROL_BOOL,
+            .status = QLCP_CONTROL_STATUS_CONFIRMED,
             .state = {
                 .control_bool = QLCP_CS_CLOSED,
             },
@@ -388,6 +389,7 @@ void test_status_encode_decode(void) {
         {
             .id = 1,
             .type = QLCP_CONTROL_INT32,
+            .status = QLCP_CONTROL_STATUS_PENDING,
             .state = {
                 .control_int32 = 12345,
             },
@@ -422,6 +424,7 @@ void test_status_encode_decode(void) {
         TEST_ASSERT_EQUAL_UINT8(status.control_count, g_server_payload.payload_data.status.control_count);
         for (size_t i = 0; i < status.control_count; i++) {
             TEST_ASSERT_EQUAL_UINT8(control_data[i].id, g_server_payload.payload_data.status.control_data[i].id);
+            TEST_ASSERT_EQUAL_UINT8(control_data[i].status, g_server_payload.payload_data.status.control_data[i].status);
             TEST_ASSERT_EQUAL_FLOAT(control_data[i].state.control_bool, g_server_payload.payload_data.status.control_data[i].state.control_bool);
         }
     }

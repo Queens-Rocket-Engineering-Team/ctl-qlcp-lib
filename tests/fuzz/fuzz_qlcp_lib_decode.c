@@ -4,7 +4,7 @@
 #include "qlcp_lib.h"
 
 static qlcp_sensor_data g_sensor_buffer[200];
-static qlcp_control_data g_control_buffer[200];
+static qlcp_status_data g_control_buffer[200];
 static uint8_t g_config_buffer[2048];
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
